@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Error - single-file-production-builder</title>
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="layout.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="masthead">
+        <div class="brand">
+          <div class="brand-mark">sf</div>
+          <div>
+            <h1 class="brand-name">Single File Builder</h1>
+            <p class="brand-sub">Compile a project into one portable index.html</p>
+          </div>
+        </div>
+        <button class="theme-toggle" type="button" data-toggle-theme>
+          Dark mode
+        </button>
+      </header>
+
+      <section class="card" style="display: grid; gap: var(--space-3)">
+        <div class="notice notice-error">
+          <div>
+            <p class="notice-title">Compile stopped</p>
+            <p class="notice-body">
+              <code>js/app.js</code> could not be minified safely: unterminated
+              template literal at line 84. Nothing was written.
+            </p>
+          </div>
+        </div>
+        <div class="notice notice-warn">
+          <div>
+            <p class="notice-title">1 reference skipped</p>
+            <p class="notice-body">
+              <code>css/theme.css</code> is referenced by
+              <code>index.html</code> but was not in the upload.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div class="row-2">
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">References</h2>
+            <span class="card-meta">4 found</span>
+          </div>
+          <ul class="filelist">
+            <li class="filerow">
+              <span class="filerow-path">css/reset.css</span>
+              <span class="filerow-type">stylesheet</span>
+              <span class="filerow-size">
+                <span class="badge badge-ok">matched</span>
+              </span>
+            </li>
+            <li class="filerow is-skipped">
+              <span class="filerow-path">css/theme.css</span>
+              <span class="filerow-type">stylesheet</span>
+              <span class="filerow-size">
+                <span class="badge badge-warn">missing</span>
+              </span>
+            </li>
+            <li class="filerow">
+              <span class="filerow-path">js/utils.js</span>
+              <span class="filerow-type">script</span>
+              <span class="filerow-size">
+                <span class="badge badge-ok">matched</span>
+              </span>
+            </li>
+            <li class="filerow">
+              <span class="filerow-path">js/app.js</span>
+              <span class="filerow-type">script</span>
+              <span class="filerow-size">
+                <span class="badge badge-error">failed</span>
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">Log</h2>
+            <span class="card-meta">0.09s</span>
+          </div>
+          <div class="log">
+            <div class="logline">
+              <span class="logline-time">0.00s</span>
+              <span class="logline-step">read</span>
+              <span class="logline-msg">7 files from portfolio-site/</span>
+            </div>
+            <div class="logline">
+              <span class="logline-time">0.01s</span>
+              <span class="logline-step">detect</span>
+              <span class="logline-msg">entry index.html</span>
+            </div>
+            <div class="logline">
+              <span class="logline-time">0.02s</span>
+              <span class="logline-step">parse</span>
+              <span class="logline-msg">4 refs (2 css, 2 js)</span>
+            </div>
+            <div class="logline is-warn">
+              <span class="logline-time">0.03s</span>
+              <span class="logline-step">resolve</span>
+              <span class="logline-msg">css/theme.css not found, skipped</span>
+            </div>
+            <div class="logline">
+              <span class="logline-time">0.05s</span>
+              <span class="logline-step">minify</span>
+              <span class="logline-msg">css/reset.css -36%</span>
+            </div>
+            <div class="logline">
+              <span class="logline-time">0.07s</span>
+              <span class="logline-step">minify</span>
+              <span class="logline-msg">js/utils.js -39%</span>
+            </div>
+            <div class="logline is-error">
+              <span class="logline-time">0.09s</span>
+              <span class="logline-step">minify</span>
+              <span class="logline-msg">js/app.js failed at line 84</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Result</h2>
+          <span class="card-meta">no output</span>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <p class="stat-label">Original</p>
+            <p class="stat-value">12.4 KB</p>
+          </div>
+          <div class="stat">
+            <p class="stat-label">Compiled</p>
+            <p class="stat-value is-muted">n/a</p>
+          </div>
+          <div class="stat">
+            <p class="stat-label">Skipped</p>
+            <p class="stat-value is-warn">1</p>
+          </div>
+          <div class="stat">
+            <p class="stat-label">References</p>
+            <p class="stat-value">2 / 4</p>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top: var(--space-5)">
+          <button class="btn btn-primary" type="button">Retry compile</button>
+          <button class="btn btn-ghost" type="button">Add missing file</button>
+        </div>
+      </section>
+
+      <p class="statebar">
+        <a href="idle.html">idle</a> &nbsp;|&nbsp;
+        <a href="files-loaded.html">files loaded</a> &nbsp;|&nbsp;
+        <a href="compiled-success.html">compiled</a> &nbsp;|&nbsp; state: error
+      </p>
+    </div>
+
+    <script>
+      const root = document.documentElement;
+      document.querySelector("[data-toggle-theme]").addEventListener("click", (e) => {
+        const next = root.dataset.theme === "dark" ? "light" : "dark";
+        root.dataset.theme = next;
+        e.currentTarget.textContent = next === "dark" ? "Light mode" : "Dark mode";
+      });
+    </script>
+  </body>
+</html>

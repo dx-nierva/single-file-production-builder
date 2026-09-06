@@ -1,0 +1,154 @@
+/* Theme variables - the durable output of /prototype.
+   Port this block into the real app's stylesheet when feature 1 builds the UI.
+   Every mockup in this folder reads from these tokens and nothing else, so
+   editing values here restyles all four states at once.
+
+   Constraint: system font stacks only. The compiled app must run offline from
+   file://, and project-plan.md section 5 rules out CDNs, so no webfonts. */
+
+:root {
+  color-scheme: light dark;
+
+  /* type - sans for chrome, mono for data (paths, sizes, log lines) */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+
+  /* scale */
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --maxw: 900px;
+}
+
+/* Light palette. Full strength, not a fallback. */
+:root,
+:root[data-theme="light"] {
+  /* surfaces */
+  --bg: #f6f6f7;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f0f0f2;
+  --border: #e3e3e7;
+  --border-strong: #cfcfd6;
+
+  /* text */
+  --text: #1b1b1f;
+  --muted: #6a6a73;
+  --faint: #9a9aa3;
+
+  /* accent - action and focus only, never status */
+  --accent: #ff6347;
+  --accent-hover: #e5533c;
+  --accent-ink: #23100b;
+  --accent-soft: rgba(255, 99, 71, 0.1);
+  --focus-ring: rgba(255, 99, 71, 0.45);
+
+  /* status - own hues so nothing competes with the tomato action color */
+  --success: #10703f;
+  --success-bg: #e7f5ed;
+  --warn: #8a5a00;
+  --warn-bg: #fbf1de;
+  --error: #bd1f47;
+  --error-bg: #fbebef;
+
+  /* drop zone */
+  --drop-border: #cfcfd6;
+  --drop-border-active: var(--accent);
+  --drop-bg: #fbfbfc;
+  --drop-bg-active: var(--accent-soft);
+
+  /* elevation */
+  --shadow-card: 0 1px 2px rgba(16, 16, 20, 0.04),
+    0 10px 28px rgba(16, 16, 20, 0.06);
+  --shadow-pop: 0 2px 4px rgba(16, 16, 20, 0.06),
+    0 16px 40px rgba(16, 16, 20, 0.1);
+}
+
+/* Dark palette. Also full strength. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121216;
+    --surface: #1a1a1f;
+    --surface-raised: #212128;
+    --surface-sunken: #141418;
+    --border: #2a2a32;
+    --border-strong: #3b3b45;
+
+    --text: #ececf1;
+    --muted: #a2a2ac;
+    --faint: #6d6d78;
+
+    --accent: #ff6347;
+    --accent-hover: #ff7d66;
+    --accent-ink: #23100b;
+    --accent-soft: rgba(255, 99, 71, 0.14);
+    --focus-ring: rgba(255, 99, 71, 0.55);
+
+    --success: #56d98a;
+    --success-bg: rgba(86, 217, 138, 0.12);
+    --warn: #f3c257;
+    --warn-bg: rgba(243, 194, 87, 0.12);
+    --error: #f2698f;
+    --error-bg: rgba(242, 105, 143, 0.12);
+
+    --drop-border: #3b3b45;
+    --drop-border-active: var(--accent);
+    --drop-bg: #16161a;
+    --drop-bg-active: var(--accent-soft);
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+    --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #121216;
+  --surface: #1a1a1f;
+  --surface-raised: #212128;
+  --surface-sunken: #141418;
+  --border: #2a2a32;
+  --border-strong: #3b3b45;
+
+  --text: #ececf1;
+  --muted: #a2a2ac;
+  --faint: #6d6d78;
+
+  --accent: #ff6347;
+  --accent-hover: #ff7d66;
+  --accent-ink: #23100b;
+  --accent-soft: rgba(255, 99, 71, 0.14);
+  --focus-ring: rgba(255, 99, 71, 0.55);
+
+  --success: #56d98a;
+  --success-bg: rgba(86, 217, 138, 0.12);
+  --warn: #f3c257;
+  --warn-bg: rgba(243, 194, 87, 0.12);
+  --error: #f2698f;
+  --error-bg: rgba(242, 105, 143, 0.12);
+
+  --drop-border: #3b3b45;
+  --drop-border-active: var(--accent);
+  --drop-bg: #16161a;
+  --drop-bg-active: var(--accent-soft);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
+}
