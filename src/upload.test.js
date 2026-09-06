@@ -1,3 +1,8 @@
+// @vitest-environment jsdom
+//
+// The success path runs analyze(), which parses the entry document, so
+// these cases need a DOM even though the uploader itself has none.
+
 import { describe, it, expect } from 'vitest'
 import { createStore, createInitialState } from './store.js'
 import { createUploader } from './upload.js'
@@ -65,6 +70,62 @@ describe('a single upload', () => {
     expect(state.errorMessage).toContain('Device not readable')
     expect([...state.uploadedFiles.keys()]).toEqual(['a.css', 'b.css'])
     expect(state.rootName).toBe('good')
+  })
+
+  it('records the entry document and what it references', async () => {
+    const { store, ingest } = setup()
+
+    await ingest([
+      input(
+        'site/index.html',
+        file('<link rel="stylesheet" href="css/main.css"><script src="js/gone.js"></script>', 'text/html'),
+      ),
+      input('site/css/main.css', file('body{}')),
+    ])
+
+    const state = store.getState()
+    expect(state.entryPath).toBe('index.html')
+    expect(state.references).toEqual([
+      {
+        kind: 'stylesheet',
+        rawHref: 'css/main.css',
+        resolvedPath: 'css/main.css',
+        status: 'matched',
+      },
+      {
+        kind: 'script',
+        rawHref: 'js/gone.js',
+        resolvedPath: 'js/gone.js',
+        status: 'missing',
+      },
+    ])
+  })
+
+  it('leaves the entry and references untouched when a read fails', async () => {
+    const { store, ingest } = setup()
+
+    await ingest([
+      input('good/index.html', file('<link rel="stylesheet" href="a.css">', 'text/html')),
+      input('good/a.css', file('a{}')),
+    ])
+    const loaded = store.getState()
+    expect(loaded.entryPath).toBe('index.html')
+    expect(loaded.references).toHaveLength(1)
+
+    await ingest([input('broken/x.css', failing('Device not readable'))])
+
+    const state = store.getState()
+    expect(state.uploadStatus).toBe('error')
+    expect(state.entryPath).toBe('index.html')
+    expect(state.references).toHaveLength(1)
+  })
+
+  it('reports no entry when the upload has no html', async () => {
+    const { store, ingest } = setup()
+    await ingest([input('site/a.css', file('a{}'))])
+
+    expect(store.getState().entryPath).toBeNull()
+    expect(store.getState().references).toEqual([])
   })
 
   it('describes a thrown value that is not an Error', async () => {

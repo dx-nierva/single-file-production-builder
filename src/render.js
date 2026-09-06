@@ -3,8 +3,9 @@
  * reconciles it against state. Building once keeps event listeners attached
  * across state changes, so nothing has to rebind after a render.
  *
- * User-controlled values (folder names, file paths, error text) are only ever
- * written with textContent. They must never reach the template literal below.
+ * User-controlled values (folder names, file paths, authored hrefs, error text)
+ * are only ever written with textContent. They must never reach the template
+ * literal below.
  */
 
 import { formatSize } from './files.js'
@@ -32,6 +33,19 @@ const SHELL = `
     </div>
   </section>
 
+  <section class="card" data-warning-card hidden>
+    <div class="notice notice-warn">
+      <div>
+        <p class="notice-title">No entry document</p>
+        <p class="notice-body">
+          Nothing in this upload is named <code>index.html</code>, and there is
+          more than one HTML file or none at all, so there is no document to
+          compile from. Add the folder that holds your entry page.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <section class="card" aria-label="Add a project">
     <div class="dropzone" data-dropzone>
       <div class="dropzone-icon" aria-hidden="true">&#8613;</div>
@@ -47,15 +61,25 @@ const SHELL = `
     <input type="file" webkitdirectory hidden data-input-folder>
   </section>
 
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">Files</h2>
+      <span class="card-meta" data-file-count></span>
+    </div>
+    <hr class="empty-rule">
+    <ul class="filelist" data-file-list hidden></ul>
+    <p class="empty" data-file-empty>Uploaded files will be listed here</p>
+  </section>
+
   <div class="row-2">
     <section class="card">
       <div class="card-head">
-        <h2 class="card-title">Files</h2>
-        <span class="card-meta" data-file-count></span>
+        <h2 class="card-title">References</h2>
+        <span class="card-meta" data-reference-count></span>
       </div>
       <hr class="empty-rule">
-      <ul class="filelist" data-file-list hidden></ul>
-      <p class="empty" data-file-empty>Uploaded files will be listed here</p>
+      <ul class="filelist" data-reference-list hidden></ul>
+      <p class="empty" data-reference-empty></p>
     </section>
 
     <section class="card">
@@ -98,12 +122,18 @@ const DROP_COPY = {
   },
 }
 
+const STATUS_BADGE = {
+  matched: 'badge-ok',
+  missing: 'badge-warn',
+  external: 'badge-muted',
+}
+
 export function mount(root) {
   root.innerHTML = SHELL
 }
 
 export function update(root, state) {
-  const { uploadStatus, uploadedFiles, rootName, errorMessage } = state
+  const { uploadStatus, uploadedFiles, rootName, errorMessage, references } = state
   const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
   const count = uploadedFiles.size
   const isReading = uploadStatus === 'reading'
@@ -113,8 +143,8 @@ export function update(root, state) {
   const keptFiles = uploadStatus === 'error' && count > 0
   const showsProject = uploadStatus === 'success' || keptFiles
 
-  // rootName and errorMessage come from the user's filesystem, so they are set
-  // as text, never interpolated into markup.
+  // rootName, errorMessage and every path or href come from the user's files,
+  // so they are set as text, never interpolated into markup.
   root.querySelector('[data-drop-title]').textContent =
     showsProject && rootName ? `${rootName}/` : copy.title
   root.querySelector('[data-drop-hint]').textContent = keptFiles
@@ -135,14 +165,25 @@ export function update(root, state) {
     totalBytes(uploadedFiles),
   )
 
-  const list = root.querySelector('[data-file-list]')
-  renderFileList(list, uploadedFiles)
-  list.hidden = count === 0
+  const fileList = root.querySelector('[data-file-list]')
+  renderFileList(fileList, state)
+  fileList.hidden = count === 0
   root.querySelector('[data-file-empty]').hidden = count > 0
 
-  // The button stays disabled until feature 4 gives it something to compile,
-  // so the empty-state hint would be misleading once files are loaded.
-  root.querySelector('[data-compile-hint]').hidden = count > 0
+  renderReferences(root, state)
+
+  // Only meaningful once the upload has settled: mid-read there is no analysis
+  // yet, and the drop zone is already saying so.
+  root.querySelector('[data-warning-card]').hidden = !(
+    count > 0 &&
+    state.entryPath === null &&
+    !isReading
+  )
+
+  // The button is disabled until feature 4 can compile, so the caption has to
+  // explain the state rather than disappear and leave a bare dead button.
+  root.querySelector('[data-compile-hint]').textContent =
+    count === 0 ? 'Add files to enable' : capitalize(referenceSummary(state))
 
   announce(root, state, count)
 }
@@ -172,13 +213,30 @@ function announce(root, state, count) {
 
   if (uploadStatus === 'success') {
     const noun = count === 1 ? '1 file' : `${count} files`
-    region.textContent = rootName
-      ? `${noun} loaded from ${rootName}`
-      : `${noun} loaded`
+    const from = rootName ? ` from ${rootName}` : ''
+    region.textContent = `${noun} loaded${from}, ${referenceSummary(state)}`
     return
   }
 
   region.textContent = ''
+}
+
+/**
+ * One phrase describing the analysis, shared by the compile caption and the
+ * live region so they can never disagree.
+ */
+function referenceSummary(state) {
+  const { entryPath, references } = state
+
+  if (entryPath === null) return 'no entry index.html found'
+  if (references.length === 0) return 'no references to inline'
+
+  const matched = references.filter((r) => r.status === 'matched').length
+  return `${matched} of ${references.length} references resolved`
+}
+
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 function describeCount(count, bytes) {
@@ -195,13 +253,32 @@ function totalBytes(uploadedFiles) {
   return total
 }
 
-function renderFileList(list, uploadedFiles) {
+function renderFileList(list, state) {
+  const { uploadedFiles, entryPath, references } = state
+
+  const referenced = new Set(
+    references.map((reference) => reference.resolvedPath).filter(Boolean),
+  )
+
   list.replaceChildren()
   for (const entry of uploadedFiles.values()) {
+    const isEntry = entry.path === entryPath
+    // Without an entry nothing has been analysed, so nothing is known to be
+    // unreferenced and badging every row would be noise.
+    const unreferenced =
+      entryPath !== null && !isEntry && !referenced.has(entry.path)
+
     const row = document.createElement('li')
     row.className = 'filerow'
+    if (isEntry) row.classList.add('is-entry')
+    if (unreferenced) row.classList.add('is-skipped')
+
+    const path = cell('filerow-path', entry.path)
+    if (isEntry) path.append(' ', badge('badge-entry', 'entry'))
+    if (unreferenced) path.append(' ', badge('badge-warn', 'not referenced'))
+
     row.append(
-      cell('filerow-path', entry.path),
+      path,
       cell('filerow-type', entry.type),
       cell('filerow-size', formatSize(entry.size)),
     )
@@ -209,10 +286,59 @@ function renderFileList(list, uploadedFiles) {
   }
 }
 
+function renderReferences(root, state) {
+  const { uploadedFiles, entryPath, references } = state
+  const list = root.querySelector('[data-reference-list]')
+
+  list.replaceChildren()
+  for (const reference of references) {
+    const row = document.createElement('li')
+    row.className = 'filerow'
+    if (reference.status !== 'matched') row.classList.add('is-skipped')
+
+    const status = document.createElement('span')
+    status.className = 'filerow-size'
+    status.append(badge(STATUS_BADGE[reference.status], reference.status))
+
+    row.append(
+      cell('filerow-path', reference.rawHref),
+      cell('filerow-type', reference.kind),
+      status,
+    )
+    list.append(row)
+  }
+
+  list.hidden = references.length === 0
+  root.querySelector('[data-reference-count]').textContent =
+    references.length === 0 ? '' : describeReferences(references)
+
+  const empty = root.querySelector('[data-reference-empty]')
+  empty.hidden = references.length > 0
+  empty.textContent = describeNoReferences(uploadedFiles.size, entryPath)
+}
+
+function describeReferences(references) {
+  const matched = references.filter((r) => r.status === 'matched').length
+  return `${matched} of ${references.length} resolved`
+}
+
+function describeNoReferences(fileCount, entryPath) {
+  if (fileCount === 0) return 'Detected from the entry document after an upload'
+  if (entryPath === null) return 'No entry document found'
+  return 'The entry document references no stylesheets or scripts'
+}
+
 /** Every ingested value reaches the DOM through here, as text. */
 function cell(className, text) {
   const span = document.createElement('span')
   span.className = className
+  span.textContent = text
+  return span
+}
+
+function badge(className, text) {
+  const span = document.createElement('span')
+  span.className = `badge ${className}`
   span.textContent = text
   return span
 }

@@ -7,6 +7,7 @@
  */
 
 import { buildFileEntries } from './files.js'
+import { analyze } from './references.js'
 
 export function createUploader(store) {
   // Reads are sequential, so a large folder takes a while and the drop zone
@@ -48,10 +49,16 @@ export function createUploader(store) {
       const { files, rootName } = await buildFileEntries(inputs)
       if (!isCurrent()) return
 
+      // Analysing here keeps the files and what they reference in one state
+      // write, so the UI never renders a project against a stale reference set.
+      const { entryPath, references } = analyze(files)
+
       store.setState({
         uploadStatus: 'success',
         uploadedFiles: files,
         rootName,
+        entryPath,
+        references,
       })
     } catch (error) {
       if (!isCurrent()) return

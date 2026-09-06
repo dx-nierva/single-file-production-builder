@@ -25,12 +25,17 @@ export function createStore(initialState) {
   }
 }
 
-/** Keys owned by feature 1. Later features add their own. */
+/** Later features add their own keys. */
 export function createInitialState() {
   return {
+    // feature 1: the upload
     uploadStatus: 'idle',
     uploadedFiles: new Map(),
     rootName: null,
     errorMessage: null,
+
+    // feature 2: what the entry document points at
+    entryPath: null,
+    references: [],
   }
 }
