@@ -59,6 +59,17 @@ const SHELL = `
         <button class="btn btn-ghost" type="button" data-pick-files>Browse files</button>
         <button class="btn btn-ghost" type="button" data-pick-folder>Browse folder</button>
       </div>
+      <hr class="empty-rule">
+      <form class="btn-row btn-row-center" data-url-form>
+        <input
+          class="text-input"
+          type="text"
+          data-input-url
+          aria-label="Project URL"
+          placeholder="https://example.com"
+        >
+        <button class="btn btn-ghost" type="submit" data-fetch-url>Fetch &amp; Compile</button>
+      </form>
       <p class="dropzone-formats">.html &middot; .css &middot; .js</p>
     </div>
     <input type="file" multiple hidden data-input-files>
@@ -131,7 +142,7 @@ const DROP_COPY = {
   },
   reading: {
     title: 'Reading files',
-    hint: 'Walking the folder. This can take a moment on large projects.',
+    hint: 'This can take a moment on large projects.',
   },
   success: {
     title: 'Project loaded',
@@ -201,6 +212,7 @@ export function update(root, state) {
   dropzone.classList.toggle('is-busy', isReading)
   dropzone.setAttribute('aria-busy', String(isReading))
   root.querySelector('[data-drop-actions]').hidden = isReading
+  root.querySelector('[data-url-form]').hidden = isReading
 
   const errorCard = root.querySelector('[data-error-card]')
   errorCard.hidden = uploadStatus !== 'error'

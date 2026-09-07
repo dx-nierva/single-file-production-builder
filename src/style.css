@@ -355,6 +355,23 @@ body {
   border-color: var(--text);
 }
 
+.text-input {
+  flex: 1;
+  min-width: 180px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.text-input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
 .btn-row {
   display: flex;
   gap: var(--space-3);

@@ -9,7 +9,7 @@ import { writeTheme } from './theme.js'
 
 const root = document.querySelector('#app')
 const store = createStore(createInitialState())
-const ingest = createUploader(store)
+const { ingest, fetchFromUrl } = createUploader(store)
 
 mount(root)
 store.subscribe((state) => update(root, state))
@@ -64,10 +64,22 @@ dropzone.addEventListener('drop', (event) => {
   ingest(collectDroppedInputs(event.dataTransfer))
 })
 
-root.querySelector('[data-compile]').addEventListener('click', () => {
+function compileNow() {
   const { uploadedFiles, entryPath } = store.getState()
   const { code, stats, log } = compile(uploadedFiles, entryPath)
   store.setState({ compiledOutput: code, stats, log })
+}
+
+root.querySelector('[data-compile]').addEventListener('click', compileNow)
+
+root.querySelector('[data-url-form]').addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const input = root.querySelector('[data-input-url]')
+  await fetchFromUrl(input.value)
+  // Checking the store's current status, rather than tracking whether this
+  // particular call won, is deliberate: fetchFromUrl's own guard already
+  // ensures the store reflects whichever run actually won by now.
+  if (store.getState().uploadStatus === 'success') compileNow()
 })
 
 /** Shared so a download and a preview build their Blob the same way. */

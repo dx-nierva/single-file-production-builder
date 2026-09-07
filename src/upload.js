@@ -8,15 +8,18 @@
 
 import { buildFileEntries } from './files.js'
 import { analyze } from './references.js'
+import { fetchProject } from './fetch-project.js'
 
 export function createUploader(store) {
   // Reads are sequential, so a large folder takes a while and the drop zone
   // stays droppable throughout. Without this counter a slow first upload would
   // resolve last and overwrite the newer one the user actually asked for.
+  // ingest and fetchFromUrl share this counter, so a slow local upload and a
+  // slow URL fetch cannot clobber each other either.
   let generationCounter = 0
   let inFlight = 0
 
-  return async function ingest(pending) {
+  async function ingest(pending) {
     const generation = (generationCounter += 1)
     const isCurrent = () => generation === generationCounter
     inFlight += 1
@@ -77,6 +80,42 @@ export function createUploader(store) {
       inFlight -= 1
     }
   }
+
+  async function fetchFromUrl(url) {
+    const generation = (generationCounter += 1)
+    const isCurrent = () => generation === generationCounter
+    inFlight += 1
+
+    store.setState({ uploadStatus: 'reading', errorMessage: null })
+
+    try {
+      const { files, rootName } = await fetchProject(url)
+      if (!isCurrent()) return
+
+      const { entryPath, references } = analyze(files)
+
+      store.setState({
+        uploadStatus: 'success',
+        uploadedFiles: files,
+        rootName,
+        entryPath,
+        references,
+        compiledOutput: null,
+        stats: null,
+        log: [],
+      })
+    } catch (error) {
+      if (!isCurrent()) return
+
+      // fetchProject's messages are already complete, user-facing text, so
+      // unlike ingest's generic read failure this needs no added prefix.
+      store.setState({ uploadStatus: 'error', errorMessage: error.message })
+    } finally {
+      inFlight -= 1
+    }
+  }
+
+  return { ingest, fetchFromUrl }
 }
 
 /** Not every thrown value is an Error, and "undefined" is not a message. */

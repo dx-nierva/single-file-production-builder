@@ -3,9 +3,12 @@
 // The success path runs analyze(), which parses the entry document, so
 // these cases need a DOM even though the uploader itself has none.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createStore, createInitialState } from './store.js'
 import { createUploader } from './upload.js'
+import { fetchProject } from './fetch-project.js'
+
+vi.mock('./fetch-project.js', () => ({ fetchProject: vi.fn() }))
 
 /** A promise whose resolution this test controls, standing in for a slow read. */
 function deferred() {
@@ -14,6 +17,24 @@ function deferred() {
     settle = resolve
   })
   return { promise, resolve: settle }
+}
+
+/** Same, but for a fetchProject call this test wants to fail on demand. */
+function deferredRejection() {
+  let fail
+  const promise = new Promise((_resolve, reject) => {
+    fail = reject
+  })
+  return { promise, reject: fail }
+}
+
+function fetched(rootName) {
+  return {
+    files: new Map([
+      ['index.html', { path: 'index.html', name: 'index.html', type: 'text/html', size: 2, content: '<html></html>' }],
+    ]),
+    rootName,
+  }
 }
 
 function file(body, type = 'text/css') {
@@ -37,7 +58,8 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 function setup() {
   const store = createStore(createInitialState())
-  return { store, ingest: createUploader(store) }
+  const { ingest, fetchFromUrl } = createUploader(store)
+  return { store, ingest, fetchFromUrl }
 }
 
 describe('a single upload', () => {
@@ -170,6 +192,68 @@ describe('overlapping uploads', () => {
 
     slow.resolve([input('slow/x.css', failing('Device not readable'))])
     await slowRun
+
+    expect(store.getState().uploadStatus).toBe('success')
+    expect(store.getState().errorMessage).toBeNull()
+  })
+})
+
+describe('ingest and fetchFromUrl sharing the race guard', () => {
+  it('lets a newer fetchFromUrl win when it resolves after a slower ingest', async () => {
+    const { store, ingest, fetchFromUrl } = setup()
+    const slow = deferred()
+    const fetchDeferred = deferred()
+
+    const slowRun = ingest(slow.promise)
+    fetchProject.mockReturnValueOnce(fetchDeferred.promise)
+    const fetchRun = fetchFromUrl('https://example.com/')
+
+    fetchDeferred.resolve(fetched('example.com'))
+    await fetchRun
+    expect(store.getState().rootName).toBe('example.com')
+
+    // The abandoned local upload resolves afterwards and must not win.
+    slow.resolve([input('slow/a.css', file('a{}'))])
+    await slowRun
+
+    expect(store.getState().rootName).toBe('example.com')
+    expect([...store.getState().uploadedFiles.keys()]).toEqual(['index.html'])
+  })
+
+  it('lets a newer ingest win when it resolves after a slower fetchFromUrl', async () => {
+    const { store, ingest, fetchFromUrl } = setup()
+    const fetchDeferred = deferred()
+    const fast = deferred()
+
+    fetchProject.mockReturnValueOnce(fetchDeferred.promise)
+    const fetchRun = fetchFromUrl('https://example.com/')
+    const fastRun = ingest(fast.promise)
+
+    fast.resolve([input('fast/only.css', file('x{}'))])
+    await fastRun
+    expect(store.getState().rootName).toBe('fast')
+
+    // The abandoned fetch resolves afterwards and must not win.
+    fetchDeferred.resolve(fetched('example.com'))
+    await fetchRun
+
+    expect(store.getState().rootName).toBe('fast')
+  })
+
+  it('suppresses the error of a fetchFromUrl superseded by a newer ingest', async () => {
+    const { store, ingest, fetchFromUrl } = setup()
+    const fetchDeferred = deferredRejection()
+    const fast = deferred()
+
+    fetchProject.mockReturnValueOnce(fetchDeferred.promise)
+    const fetchRun = fetchFromUrl('https://example.com/')
+    const fastRun = ingest(fast.promise)
+
+    fast.resolve([input('fast/only.css', file('x{}'))])
+    await fastRun
+
+    fetchDeferred.reject(new Error('Could not reach that URL.'))
+    await fetchRun
 
     expect(store.getState().uploadStatus).toBe('success')
     expect(store.getState().errorMessage).toBeNull()
