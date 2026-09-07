@@ -40,5 +40,9 @@ export function createInitialState() {
 
     // feature 4: the compiled result
     compiledOutput: null,
+
+    // feature 5: how the compile went
+    stats: null,
+    log: [],
   }
 }

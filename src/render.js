@@ -9,6 +9,7 @@
  */
 
 import { formatSize } from './files.js'
+import { describeSavings } from './compile.js'
 
 const SHELL = `
 <div class="shell">
@@ -88,9 +89,20 @@ const SHELL = `
         <span class="card-meta" data-result-status>not compiled</span>
       </div>
       <hr class="empty-rule">
+      <ul class="filelist" data-result-stats hidden></ul>
       <p class="empty" data-result-empty>Size and reference stats appear after compiling</p>
     </section>
   </div>
+
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">Log</h2>
+      <span class="card-meta" data-log-count></span>
+    </div>
+    <hr class="empty-rule">
+    <ul class="filelist" data-log-list hidden></ul>
+    <p class="empty" data-log-empty>Compile a project to see the log</p>
+  </section>
 
   <section class="card">
     <div class="btn-row">
@@ -128,6 +140,12 @@ const STATUS_BADGE = {
   external: 'badge-muted',
 }
 
+const LOG_BADGE = {
+  info: 'badge-ok',
+  warn: 'badge-warn',
+  error: 'badge-error',
+}
+
 export function mount(root) {
   root.innerHTML = SHELL
 }
@@ -141,6 +159,8 @@ export function update(root, state) {
     references,
     entryPath,
     compiledOutput,
+    stats,
+    log,
   } = state
   const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
   const count = uploadedFiles.size
@@ -199,10 +219,19 @@ export function update(root, state) {
 
   root.querySelector('[data-result-status]').textContent =
     compiledOutput === null ? 'not compiled' : 'compiled'
-  root.querySelector('[data-result-empty]').textContent =
-    compiledOutput === null
-      ? 'Size and reference stats appear after compiling'
-      : 'Compiled. Download and preview arrive with a later feature.'
+
+  const resultStats = root.querySelector('[data-result-stats]')
+  renderStats(resultStats, stats)
+  resultStats.hidden = stats === null
+  root.querySelector('[data-result-empty]').hidden = stats !== null
+
+  root.querySelector('[data-log-count]').textContent =
+    log.length === 0 ? '' : `${log.length} ${log.length === 1 ? 'entry' : 'entries'}`
+
+  const logList = root.querySelector('[data-log-list]')
+  renderLog(logList, log)
+  logList.hidden = log.length === 0
+  root.querySelector('[data-log-empty]').hidden = log.length > 0
 
   announce(root, state, count)
 }
@@ -345,6 +374,44 @@ function describeNoReferences(fileCount, entryPath) {
   if (fileCount === 0) return 'Detected from the entry document after an upload'
   if (entryPath === null) return 'No entry document found'
   return 'The entry document references no stylesheets or scripts'
+}
+
+/** One row per stat, reusing the exact three-column rhythm every other card
+ *  already uses: label, an empty middle cell, the value right-aligned. */
+function renderStats(list, stats) {
+  list.replaceChildren()
+  if (stats === null) return
+
+  const rows = [
+    ['Original', formatSize(stats.originalBytes)],
+    ['Compiled', formatSize(stats.compiledBytes)],
+    ['Saved', describeSavings(stats.originalBytes, stats.compiledBytes)],
+    ['Matched', String(stats.matchedCount)],
+    ['Missing', String(stats.missingCount)],
+    ['External', String(stats.externalCount)],
+  ]
+
+  for (const [label, value] of rows) {
+    const row = document.createElement('li')
+    row.className = 'filerow'
+    row.append(cell('filerow-path', label), cell('filerow-type', ''), cell('filerow-size', value))
+    list.append(row)
+  }
+}
+
+function renderLog(list, log) {
+  list.replaceChildren()
+  for (const entry of log) {
+    const row = document.createElement('li')
+    row.className = 'filerow'
+
+    const level = document.createElement('span')
+    level.className = 'filerow-size'
+    level.append(badge(LOG_BADGE[entry.level], entry.level))
+
+    row.append(cell('filerow-path', entry.step), cell('filerow-type', entry.message), level)
+    list.append(row)
+  }
 }
 
 /** Every ingested value reaches the DOM through here, as text. */

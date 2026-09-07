@@ -65,7 +65,8 @@ dropzone.addEventListener('drop', (event) => {
 
 root.querySelector('[data-compile]').addEventListener('click', () => {
   const { uploadedFiles, entryPath } = store.getState()
-  store.setState({ compiledOutput: compile(uploadedFiles, entryPath) })
+  const { code, stats, log } = compile(uploadedFiles, entryPath)
+  store.setState({ compiledOutput: code, stats, log })
 })
 
 function handlePicked(input) {

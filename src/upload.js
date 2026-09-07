@@ -61,6 +61,8 @@ export function createUploader(store) {
         references,
         // A compile of the previous project no longer describes what's loaded.
         compiledOutput: null,
+        stats: null,
+        log: [],
       })
     } catch (error) {
       if (!isCurrent()) return

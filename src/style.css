@@ -519,6 +519,11 @@ body {
   color: var(--muted);
 }
 
+.badge-error {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
 .filerow.is-entry .filerow-path {
   color: var(--accent);
   font-weight: 600;
