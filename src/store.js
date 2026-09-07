@@ -37,5 +37,8 @@ export function createInitialState() {
     // feature 2: what the entry document points at
     entryPath: null,
     references: [],
+
+    // feature 4: the compiled result
+    compiledOutput: null,
   }
 }

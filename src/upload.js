@@ -59,6 +59,8 @@ export function createUploader(store) {
         rootName,
         entryPath,
         references,
+        // A compile of the previous project no longer describes what's loaded.
+        compiledOutput: null,
       })
     } catch (error) {
       if (!isCurrent()) return

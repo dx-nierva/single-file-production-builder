@@ -4,6 +4,7 @@ import { mount, update, setDragActive } from './render.js'
 import * as files from './files.js'
 import { createUploader } from './upload.js'
 import { collectDroppedInputs } from './drop.js'
+import { compile } from './compile.js'
 
 const root = document.querySelector('#app')
 const store = createStore(createInitialState())
@@ -60,6 +61,11 @@ dropzone.addEventListener('drop', (event) => {
 
   // Read the transfer synchronously, then hand the walk to ingest.
   ingest(collectDroppedInputs(event.dataTransfer))
+})
+
+root.querySelector('[data-compile]').addEventListener('click', () => {
+  const { uploadedFiles, entryPath } = store.getState()
+  store.setState({ compiledOutput: compile(uploadedFiles, entryPath) })
 })
 
 function handlePicked(input) {

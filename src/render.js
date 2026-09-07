@@ -85,10 +85,10 @@ const SHELL = `
     <section class="card">
       <div class="card-head">
         <h2 class="card-title">Result</h2>
-        <span class="card-meta">not compiled</span>
+        <span class="card-meta" data-result-status>not compiled</span>
       </div>
       <hr class="empty-rule">
-      <p class="empty">Size and reference stats appear after compiling</p>
+      <p class="empty" data-result-empty>Size and reference stats appear after compiling</p>
     </section>
   </div>
 
@@ -133,7 +133,15 @@ export function mount(root) {
 }
 
 export function update(root, state) {
-  const { uploadStatus, uploadedFiles, rootName, errorMessage, references } = state
+  const {
+    uploadStatus,
+    uploadedFiles,
+    rootName,
+    errorMessage,
+    references,
+    entryPath,
+    compiledOutput,
+  } = state
   const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
   const count = uploadedFiles.size
   const isReading = uploadStatus === 'reading'
@@ -180,10 +188,21 @@ export function update(root, state) {
     !isReading
   )
 
-  // The button is disabled until feature 4 can compile, so the caption has to
-  // explain the state rather than disappear and leave a bare dead button.
+  // The caption explains the disabled state rather than disappearing and
+  // leaving a bare dead button.
   root.querySelector('[data-compile-hint]').textContent =
     count === 0 ? 'Add files to enable' : capitalize(referenceSummary(state))
+
+  // Mid-read, entryPath still describes whatever was loaded before, so
+  // compiling is gated on the read having settled, not just a non-null path.
+  root.querySelector('[data-compile]').disabled = isReading || entryPath === null
+
+  root.querySelector('[data-result-status]').textContent =
+    compiledOutput === null ? 'not compiled' : 'compiled'
+  root.querySelector('[data-result-empty]').textContent =
+    compiledOutput === null
+      ? 'Size and reference stats appear after compiling'
+      : 'Compiled. Download and preview arrive with a later feature.'
 
   announce(root, state, count)
 }

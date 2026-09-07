@@ -84,28 +84,38 @@ function directoryOf(entryPath) {
 }
 
 /**
- * The stylesheet and script references in one parsed document, in document
- * order. Feature 4 inlines in this order, so it must not be sorted.
+ * Whether one DOM node is a stylesheet or script reference, and if so what
+ * kind and authored href it carries. Shared with feature 4's compiler so the
+ * compiled output can never disagree with what this card already classified.
  *
  * Inline `<style>` and inline `<script>` are not references: they are already
  * part of the document and there is nothing to fetch or inline for them.
+ */
+export function classifyNode(node) {
+  const isLink = node.tagName.toLowerCase() === 'link'
+
+  if (isLink) {
+    // rel is a token list: "preload stylesheet" is still a stylesheet.
+    const rel = (node.getAttribute('rel') ?? '').toLowerCase().split(/\s+/)
+    if (!rel.includes('stylesheet')) return null
+  }
+
+  const rawHref = node.getAttribute(isLink ? 'href' : 'src')
+  if (rawHref === null || rawHref.trim() === '') return null
+
+  return { kind: isLink ? 'stylesheet' : 'script', rawHref }
+}
+
+/**
+ * The stylesheet and script references in one parsed document, in document
+ * order. Feature 4 inlines in this order, so it must not be sorted.
  */
 export function extractReferences(doc) {
   const references = []
 
   for (const node of doc.querySelectorAll('link, script')) {
-    const isLink = node.tagName.toLowerCase() === 'link'
-
-    if (isLink) {
-      // rel is a token list: "preload stylesheet" is still a stylesheet.
-      const rel = (node.getAttribute('rel') ?? '').toLowerCase().split(/\s+/)
-      if (!rel.includes('stylesheet')) continue
-    }
-
-    const rawHref = node.getAttribute(isLink ? 'href' : 'src')
-    if (rawHref === null || rawHref.trim() === '') continue
-
-    references.push({ kind: isLink ? 'stylesheet' : 'script', rawHref })
+    const reference = classifyNode(node)
+    if (reference !== null) references.push(reference)
   }
 
   return references
@@ -140,9 +150,11 @@ export function analyze(files) {
 
 /**
  * External is not the same as missing: the target exists, it just cannot be
- * inlined from the dropped files.
+ * inlined from the dropped files. Exported for feature 4's compiler, which
+ * re-resolves against a freshly parsed document rather than trusting this
+ * array's order to line up with a separate DOM walk.
  */
-function classify(resolvedPath, external, files) {
+export function classify(resolvedPath, external, files) {
   if (external) return 'external'
   return resolvedPath !== null && files.has(resolvedPath) ? 'matched' : 'missing'
 }
