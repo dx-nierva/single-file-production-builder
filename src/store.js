@@ -1,3 +1,5 @@
+import { readTheme } from './theme.js'
+
 /**
  * Minimal state container. The whole app is a function of this state: nothing
  * outside render.js touches the DOM, and nothing outside here mutates state.
@@ -44,5 +46,8 @@ export function createInitialState() {
     // feature 5: how the compile went
     stats: null,
     log: [],
+
+    // feature 7: the persisted display theme
+    theme: readTheme(),
   }
 }

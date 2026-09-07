@@ -5,6 +5,7 @@ import * as files from './files.js'
 import { createUploader } from './upload.js'
 import { collectDroppedInputs } from './drop.js'
 import { compile } from './compile.js'
+import { writeTheme } from './theme.js'
 
 const root = document.querySelector('#app')
 const store = createStore(createInitialState())
@@ -103,6 +104,12 @@ root.querySelector('[data-preview]').addEventListener('click', () => {
   // the preview tab failing to load. One retained Blob per preview click,
   // freed when the page closes or reloads, is the accepted, bounded cost of
   // never risking a visibly broken preview.
+})
+
+root.querySelector('[data-theme-toggle]').addEventListener('click', () => {
+  const next = store.getState().theme === 'dark' ? 'light' : 'dark'
+  store.setState({ theme: next })
+  writeTheme(next)
 })
 
 function handlePicked(input) {

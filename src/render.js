@@ -21,6 +21,9 @@ const SHELL = `
         <p class="brand-sub">Compile a project into one portable index.html</p>
       </div>
     </div>
+    <button class="btn btn-ghost" type="button" data-theme-toggle>
+      Toggle theme
+    </button>
   </header>
 
   <p class="sr-only" role="status" aria-live="polite" data-status></p>
@@ -167,10 +170,19 @@ export function update(root, state) {
     compiledOutput,
     stats,
     log,
+    theme,
   } = state
   const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
   const count = uploadedFiles.size
   const isReading = uploadStatus === 'reading'
+
+  // The one DOM write in this file that targets an element outside root,
+  // kept here anyway so every DOM write still goes through update().
+  document.documentElement.dataset.theme = theme
+
+  const themeToggle = root.querySelector('[data-theme-toggle]')
+  themeToggle.textContent = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+  themeToggle.setAttribute('aria-pressed', String(theme === 'dark'))
 
   // A failed upload keeps whatever was already loaded, so the drop zone has to
   // keep naming that project rather than reverting to the empty invitation.
