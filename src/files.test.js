@@ -5,6 +5,7 @@ import {
   inferType,
   formatSize,
   buildFileEntries,
+  downloadName,
 } from './files.js'
 
 // The non-breaking space formatSize emits, written as an escape so it
@@ -185,5 +186,15 @@ describe('buildFileEntries', () => {
         }),
       ]),
     ).rejects.toThrow('could not be read')
+  })
+})
+
+describe('downloadName', () => {
+  it('appends .html to the upload root name', () => {
+    expect(downloadName('portfolio-site')).toBe('portfolio-site.html')
+  })
+
+  it('falls back to index.html when there is no common root', () => {
+    expect(downloadName(null)).toBe('index.html')
   })
 })

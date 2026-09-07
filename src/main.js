@@ -69,6 +69,42 @@ root.querySelector('[data-compile]').addEventListener('click', () => {
   store.setState({ compiledOutput: code, stats, log })
 })
 
+/** Shared so a download and a preview build their Blob the same way. */
+function createOutputUrl(compiledOutput) {
+  return URL.createObjectURL(new Blob([compiledOutput], { type: 'text/html' }))
+}
+
+root.querySelector('[data-download]').addEventListener('click', () => {
+  const { compiledOutput, rootName } = store.getState()
+  const url = createOutputUrl(compiledOutput)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = files.downloadName(rootName)
+  link.click()
+
+  // The anchor's synchronous click already triggered the browser's own
+  // (synchronous) read of the blob, so revoking on the next tick is safe.
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+})
+
+root.querySelector('[data-preview]').addEventListener('click', () => {
+  const { compiledOutput } = store.getState()
+  const url = createOutputUrl(compiledOutput)
+
+  // Called synchronously, with nothing awaited first: a popup blocker only
+  // allows window.open from within a trusted click event, and that trust
+  // does not survive an intervening async gap.
+  window.open(url, '_blank', 'noopener')
+
+  // Deliberately never revoked. Opening a new tab and navigating it to a
+  // blob: URL is not guaranteed to finish its fetch within one tick the way
+  // the download's synchronous read is; revoking on any short timer risks
+  // the preview tab failing to load. One retained Blob per preview click,
+  // freed when the page closes or reloads, is the accepted, bounded cost of
+  // never risking a visibly broken preview.
+})
+
 function handlePicked(input) {
   const picked = [...input.files].map((file) => ({
     file,

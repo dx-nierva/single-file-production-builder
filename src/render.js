@@ -109,6 +109,12 @@ const SHELL = `
       <button class="btn btn-primary" type="button" disabled data-compile>
         Compile to single file
       </button>
+      <button class="btn btn-ghost" type="button" disabled data-download>
+        Download
+      </button>
+      <button class="btn btn-ghost" type="button" disabled data-preview>
+        Preview
+      </button>
       <span class="card-meta" data-compile-hint>Add files to enable</span>
     </div>
   </section>
@@ -216,6 +222,10 @@ export function update(root, state) {
   // Mid-read, entryPath still describes whatever was loaded before, so
   // compiling is gated on the read having settled, not just a non-null path.
   root.querySelector('[data-compile]').disabled = isReading || entryPath === null
+
+  const canAct = compiledOutput !== null
+  root.querySelector('[data-download]').disabled = !canAct
+  root.querySelector('[data-preview]').disabled = !canAct
 
   root.querySelector('[data-result-status]').textContent =
     compiledOutput === null ? 'not compiled' : 'compiled'

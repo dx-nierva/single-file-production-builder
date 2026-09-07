@@ -104,6 +104,15 @@ export function basename(path) {
 }
 
 /**
+ * The suggested filename for a compiled download. Falls back to a generic
+ * name when the upload had no single common root (a flat, mixed-top-level
+ * file selection), which is the only time rootName is null.
+ */
+export function downloadName(rootName) {
+  return rootName ? `${rootName}.html` : 'index.html'
+}
+
+/**
  * Build one FileEntry. `path` must already be normalized and root-stripped.
  * Only text is decoded; binary content waits for feature 10.
  */
