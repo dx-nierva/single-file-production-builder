@@ -1,139 +1,14 @@
 /**
- * Owns every DOM write. The shell is built once by mount(), then update()
- * reconciles it against state. Building once keeps event listeners attached
- * across state changes, so nothing has to rebind after a render.
+ * Owns every DOM write. All markup already exists in index.html (including
+ * the row templates); this file only ever reconciles element state/text/
+ * attributes against the store - it never builds structure from a string.
  *
  * User-controlled values (folder names, file paths, authored hrefs, error text)
- * are only ever written with textContent. They must never reach the template
- * literal below.
+ * are only ever written with textContent, never into markup.
  */
 
 import { formatSize } from './files.js'
 import { describeSavings } from './compile.js'
-
-const SHELL = `
-<div class="shell">
-  <header class="masthead">
-    <div class="brand">
-      <div class="brand-mark">sf</div>
-      <div>
-        <h1 class="brand-name">Single File Builder</h1>
-        <p class="brand-sub">Compile a project into one portable index.html</p>
-      </div>
-    </div>
-    <button class="btn btn-ghost" type="button" data-theme-toggle>
-      Toggle theme
-    </button>
-  </header>
-
-  <p class="sr-only" role="status" aria-live="polite" data-status></p>
-
-  <section class="card" data-error-card hidden>
-    <div class="notice notice-error">
-      <div>
-        <p class="notice-title">Upload failed</p>
-        <p class="notice-body" data-error-text></p>
-      </div>
-    </div>
-  </section>
-
-  <section class="card" data-warning-card hidden>
-    <div class="notice notice-warn">
-      <div>
-        <p class="notice-title">No entry document</p>
-        <p class="notice-body">
-          Nothing in this upload is named <code>index.html</code>, and there is
-          more than one HTML file or none at all, so there is no document to
-          compile from. Add the folder that holds your entry page.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section class="card" aria-label="Add a project">
-    <div class="dropzone" data-dropzone>
-      <div class="dropzone-icon" aria-hidden="true">&#8613;</div>
-      <p class="dropzone-title" data-drop-title></p>
-      <p class="dropzone-hint" data-drop-hint></p>
-      <div class="btn-row btn-row-center" data-drop-actions>
-        <button class="btn btn-ghost" type="button" data-pick-files>Browse files</button>
-        <button class="btn btn-ghost" type="button" data-pick-folder>Browse folder</button>
-      </div>
-      <hr class="empty-rule">
-      <form class="btn-row btn-row-center" data-url-form>
-        <input
-          class="text-input"
-          type="text"
-          data-input-url
-          aria-label="Project URL"
-          placeholder="https://example.com"
-        >
-        <button class="btn btn-ghost" type="submit" data-fetch-url>Fetch &amp; Compile</button>
-      </form>
-      <p class="dropzone-formats">.html &middot; .css &middot; .js</p>
-    </div>
-    <input type="file" multiple hidden data-input-files>
-    <input type="file" webkitdirectory hidden data-input-folder>
-  </section>
-
-  <section class="card">
-    <div class="card-head">
-      <h2 class="card-title">Files</h2>
-      <span class="card-meta" data-file-count></span>
-    </div>
-    <hr class="empty-rule">
-    <ul class="filelist" data-file-list hidden></ul>
-    <p class="empty" data-file-empty>Uploaded files will be listed here</p>
-  </section>
-
-  <div class="row-2">
-    <section class="card">
-      <div class="card-head">
-        <h2 class="card-title">References</h2>
-        <span class="card-meta" data-reference-count></span>
-      </div>
-      <hr class="empty-rule">
-      <ul class="filelist" data-reference-list hidden></ul>
-      <p class="empty" data-reference-empty></p>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2 class="card-title">Result</h2>
-        <span class="card-meta" data-result-status>not compiled</span>
-      </div>
-      <hr class="empty-rule">
-      <ul class="filelist" data-result-stats hidden></ul>
-      <p class="empty" data-result-empty>Size and reference stats appear after compiling</p>
-    </section>
-  </div>
-
-  <section class="card">
-    <div class="card-head">
-      <h2 class="card-title">Log</h2>
-      <span class="card-meta" data-log-count></span>
-    </div>
-    <hr class="empty-rule">
-    <ul class="filelist" data-log-list hidden></ul>
-    <p class="empty" data-log-empty>Compile a project to see the log</p>
-  </section>
-
-  <section class="card">
-    <div class="btn-row">
-      <button class="btn btn-primary" type="button" disabled data-compile>
-        Compile to single file
-      </button>
-      <button class="btn btn-ghost" type="button" disabled data-download>
-        Download
-      </button>
-      <button class="btn btn-ghost" type="button" disabled data-preview>
-        Preview
-      </button>
-      <span class="card-meta" data-compile-hint>Add files to enable</span>
-    </div>
-  </section>
-</div>
-`
 
 const DROP_COPY = {
   idle: {
@@ -164,10 +39,6 @@ const LOG_BADGE = {
   info: 'badge-ok',
   warn: 'badge-warn',
   error: 'badge-error',
-}
-
-export function mount(root) {
-  root.innerHTML = SHELL
 }
 
 export function update(root, state) {
@@ -224,7 +95,7 @@ export function update(root, state) {
   )
 
   const fileList = root.querySelector('[data-file-list]')
-  renderFileList(fileList, state)
+  renderFileList(root, fileList, state)
   fileList.hidden = count === 0
   root.querySelector('[data-file-empty]').hidden = count > 0
 
@@ -263,7 +134,7 @@ export function update(root, state) {
     log.length === 0 ? '' : `${log.length} ${log.length === 1 ? 'entry' : 'entries'}`
 
   const logList = root.querySelector('[data-log-list]')
-  renderLog(logList, log)
+  renderLog(root, logList, log)
   logList.hidden = log.length === 0
   root.querySelector('[data-log-empty]').hidden = log.length > 0
 
@@ -335,13 +206,14 @@ function totalBytes(uploadedFiles) {
   return total
 }
 
-function renderFileList(list, state) {
+function renderFileList(root, list, state) {
   const { uploadedFiles, entryPath, references } = state
 
   const referenced = new Set(
     references.map((reference) => reference.resolvedPath).filter(Boolean),
   )
 
+  const template = root.querySelector('[data-tpl-file-row]')
   list.replaceChildren()
   for (const entry of uploadedFiles.values()) {
     const isEntry = entry.path === entryPath
@@ -350,20 +222,16 @@ function renderFileList(list, state) {
     const unreferenced =
       entryPath !== null && !isEntry && !referenced.has(entry.path)
 
-    const row = document.createElement('li')
-    row.className = 'filerow'
-    if (isEntry) row.classList.add('is-entry')
-    if (unreferenced) row.classList.add('is-skipped')
+    const row = cloneRow(template)
+    row.classList.toggle('is-entry', isEntry)
+    row.classList.toggle('is-skipped', unreferenced)
 
-    const path = cell('filerow-path', entry.path)
-    if (isEntry) path.append(' ', badge('badge-entry', 'entry'))
-    if (unreferenced) path.append(' ', badge('badge-warn', 'not referenced'))
+    row.querySelector('[data-cell-path]').textContent = entry.path
+    row.querySelector('[data-cell-type]').textContent = entry.type
+    row.querySelector('[data-cell-size]').textContent = formatSize(entry.size)
+    row.querySelector('[data-badge-entry]').hidden = !isEntry
+    row.querySelector('[data-badge-unreferenced]').hidden = !unreferenced
 
-    row.append(
-      path,
-      cell('filerow-type', entry.type),
-      cell('filerow-size', formatSize(entry.size)),
-    )
     list.append(row)
   }
 }
@@ -371,22 +239,20 @@ function renderFileList(list, state) {
 function renderReferences(root, state) {
   const { uploadedFiles, entryPath, references } = state
   const list = root.querySelector('[data-reference-list]')
+  const template = root.querySelector('[data-tpl-reference-row]')
 
   list.replaceChildren()
   for (const reference of references) {
-    const row = document.createElement('li')
-    row.className = 'filerow'
-    if (reference.status !== 'matched') row.classList.add('is-skipped')
+    const row = cloneRow(template)
+    row.classList.toggle('is-skipped', reference.status !== 'matched')
 
-    const status = document.createElement('span')
-    status.className = 'filerow-size'
-    status.append(badge(STATUS_BADGE[reference.status], reference.status))
+    row.querySelector('[data-cell-path]').textContent = reference.rawHref
+    row.querySelector('[data-cell-type]').textContent = reference.kind
 
-    row.append(
-      cell('filerow-path', reference.rawHref),
-      cell('filerow-type', reference.kind),
-      status,
-    )
+    const status = row.querySelector('[data-cell-status]')
+    status.className = `badge ${STATUS_BADGE[reference.status]}`
+    status.textContent = reference.status
+
     list.append(row)
   }
 
@@ -410,55 +276,44 @@ function describeNoReferences(fileCount, entryPath) {
   return 'The entry document references no stylesheets or scripts'
 }
 
-/** One row per stat, reusing the exact three-column rhythm every other card
- *  already uses: label, an empty middle cell, the value right-aligned. */
+/** The six rows already exist in index.html; only their values ever change. */
 function renderStats(list, stats) {
-  list.replaceChildren()
-  if (stats === null) return
-
-  const rows = [
-    ['Original', formatSize(stats.originalBytes)],
-    ['Compiled', formatSize(stats.compiledBytes)],
-    ['Saved', describeSavings(stats.originalBytes, stats.compiledBytes)],
-    ['Matched', String(stats.matchedCount)],
-    ['Missing', String(stats.missingCount)],
-    ['External', String(stats.externalCount)],
-  ]
-
-  for (const [label, value] of rows) {
-    const row = document.createElement('li')
-    row.className = 'filerow'
-    row.append(cell('filerow-path', label), cell('filerow-type', ''), cell('filerow-size', value))
-    list.append(row)
+  const values = stats ?? {
+    originalBytes: 0,
+    compiledBytes: 0,
+    matchedCount: 0,
+    missingCount: 0,
+    externalCount: 0,
   }
+  const saved = stats ? describeSavings(stats.originalBytes, stats.compiledBytes) : ''
+
+  list.querySelector('[data-stat-original]').textContent = stats ? formatSize(values.originalBytes) : ''
+  list.querySelector('[data-stat-compiled]').textContent = stats ? formatSize(values.compiledBytes) : ''
+  list.querySelector('[data-stat-saved]').textContent = saved
+  list.querySelector('[data-stat-matched]').textContent = stats ? String(values.matchedCount) : ''
+  list.querySelector('[data-stat-missing]').textContent = stats ? String(values.missingCount) : ''
+  list.querySelector('[data-stat-external]').textContent = stats ? String(values.externalCount) : ''
 }
 
-function renderLog(list, log) {
+function renderLog(root, list, log) {
+  const template = root.querySelector('[data-tpl-log-row]')
   list.replaceChildren()
   for (const entry of log) {
-    const row = document.createElement('li')
-    row.className = 'filerow'
+    const row = cloneRow(template)
 
-    const level = document.createElement('span')
-    level.className = 'filerow-size'
-    level.append(badge(LOG_BADGE[entry.level], entry.level))
+    row.querySelector('[data-cell-step]').textContent = entry.step
+    row.querySelector('[data-cell-message]').textContent = entry.message
 
-    row.append(cell('filerow-path', entry.step), cell('filerow-type', entry.message), level)
+    const level = row.querySelector('[data-cell-level]')
+    level.className = `badge ${LOG_BADGE[entry.level]}`
+    level.textContent = entry.level
+
     list.append(row)
   }
 }
 
-/** Every ingested value reaches the DOM through here, as text. */
-function cell(className, text) {
-  const span = document.createElement('span')
-  span.className = className
-  span.textContent = text
-  return span
-}
-
-function badge(className, text) {
-  const span = document.createElement('span')
-  span.className = `badge ${className}`
-  span.textContent = text
-  return span
+/** Every row template's content is exactly one <li>; clone that node directly
+ *  rather than the fragment wrapping it. */
+function cloneRow(template) {
+  return template.content.firstElementChild.cloneNode(true)
 }

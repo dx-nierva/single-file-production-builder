@@ -7,7 +7,188 @@
     <title>Single File Builder</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <template data-tpl-file-row>
+        <li class="filerow">
+          <span class="filerow-path">
+            <span data-cell-path></span>
+            <span class="badge badge-entry" data-badge-entry hidden>entry</span>
+            <span class="badge badge-warn" data-badge-unreferenced hidden>not referenced</span>
+          </span>
+          <span class="filerow-type" data-cell-type></span>
+          <span class="filerow-size" data-cell-size></span>
+        </li>
+      </template>
+
+      <template data-tpl-reference-row>
+        <li class="filerow">
+          <span class="filerow-path" data-cell-path></span>
+          <span class="filerow-type" data-cell-type></span>
+          <span class="filerow-size"><span class="badge" data-cell-status></span></span>
+        </li>
+      </template>
+
+      <template data-tpl-log-row>
+        <li class="filerow">
+          <span class="filerow-path" data-cell-step></span>
+          <span class="filerow-type" data-cell-message></span>
+          <span class="filerow-size"><span class="badge" data-cell-level></span></span>
+        </li>
+      </template>
+
+      <div class="shell">
+        <header class="masthead">
+          <div class="brand">
+            <div class="brand-mark">sf</div>
+            <div>
+              <h1 class="brand-name">Single File Builder</h1>
+              <p class="brand-sub">Compile a project into one portable index.html</p>
+            </div>
+          </div>
+          <button class="btn btn-ghost" type="button" data-theme-toggle>
+            Toggle theme
+          </button>
+        </header>
+
+        <p class="sr-only" role="status" aria-live="polite" data-status></p>
+
+        <section class="card" data-error-card hidden>
+          <div class="notice notice-error">
+            <div>
+              <p class="notice-title">Upload failed</p>
+              <p class="notice-body" data-error-text></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" data-warning-card hidden>
+          <div class="notice notice-warn">
+            <div>
+              <p class="notice-title">No entry document</p>
+              <p class="notice-body">
+                Nothing in this upload is named <code>index.html</code>, and there is
+                more than one HTML file or none at all, so there is no document to
+                compile from. Add the folder that holds your entry page.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" aria-label="Add a project">
+          <div class="dropzone" data-dropzone>
+            <div class="dropzone-icon" aria-hidden="true">&#8613;</div>
+            <p class="dropzone-title" data-drop-title></p>
+            <p class="dropzone-hint" data-drop-hint></p>
+            <div class="btn-row btn-row-center" data-drop-actions>
+              <button class="btn btn-ghost" type="button" data-pick-files>Browse files</button>
+              <button class="btn btn-ghost" type="button" data-pick-folder>Browse folder</button>
+            </div>
+            <hr class="empty-rule">
+            <form class="btn-row btn-row-center" data-url-form>
+              <input
+                class="text-input"
+                type="text"
+                data-input-url
+                aria-label="Project URL"
+                placeholder="https://example.com"
+              >
+              <button class="btn btn-ghost" type="submit" data-fetch-url>Fetch &amp; Compile</button>
+            </form>
+            <p class="dropzone-formats">.html &middot; .css &middot; .js</p>
+          </div>
+          <input type="file" multiple hidden data-input-files>
+          <input type="file" webkitdirectory hidden data-input-folder>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">Files</h2>
+            <span class="card-meta" data-file-count></span>
+          </div>
+          <hr class="empty-rule">
+          <ul class="filelist" data-file-list hidden></ul>
+          <p class="empty" data-file-empty>Uploaded files will be listed here</p>
+        </section>
+
+        <div class="row-2">
+          <section class="card">
+            <div class="card-head">
+              <h2 class="card-title">References</h2>
+              <span class="card-meta" data-reference-count></span>
+            </div>
+            <hr class="empty-rule">
+            <ul class="filelist" data-reference-list hidden></ul>
+            <p class="empty" data-reference-empty></p>
+          </section>
+
+          <section class="card">
+            <div class="card-head">
+              <h2 class="card-title">Result</h2>
+              <span class="card-meta" data-result-status>not compiled</span>
+            </div>
+            <hr class="empty-rule">
+            <ul class="filelist" data-result-stats hidden>
+              <li class="filerow">
+                <span class="filerow-path">Original</span>
+                <span class="filerow-type"></span>
+                <span class="filerow-size" data-stat-original></span>
+              </li>
+              <li class="filerow">
+                <span class="filerow-path">Compiled</span>
+                <span class="filerow-type"></span>
+                <span class="filerow-size" data-stat-compiled></span>
+              </li>
+              <li class="filerow">
+                <span class="filerow-path">Saved</span>
+                <span class="filerow-type"></span>
+                <span class="filerow-size" data-stat-saved></span>
+              </li>
+              <li class="filerow">
+                <span class="filerow-path">Matched</span>
+                <span class="filerow-type"></span>
+                <span class="filerow-size" data-stat-matched></span>
+              </li>
+              <li class="filerow">
+                <span class="filerow-path">Missing</span>
+                <span class="filerow-type"></span>
+                <span class="filerow-size" data-stat-missing></span>
+              </li>
+              <li class="filerow">
+                <span class="filerow-path">External</span>
+                <span class="filerow-type"></span>
+                <span class="filerow-size" data-stat-external></span>
+              </li>
+            </ul>
+            <p class="empty" data-result-empty>Size and reference stats appear after compiling</p>
+          </section>
+        </div>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">Log</h2>
+            <span class="card-meta" data-log-count></span>
+          </div>
+          <hr class="empty-rule">
+          <ul class="filelist" data-log-list hidden></ul>
+          <p class="empty" data-log-empty>Compile a project to see the log</p>
+        </section>
+
+        <section class="card">
+          <div class="btn-row">
+            <button class="btn btn-primary" type="button" disabled data-compile>
+              Compile to single file
+            </button>
+            <button class="btn btn-ghost" type="button" disabled data-download>
+              Download
+            </button>
+            <button class="btn btn-ghost" type="button" disabled data-preview>
+              Preview
+            </button>
+            <span class="card-meta" data-compile-hint>Add files to enable</span>
+          </div>
+        </section>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

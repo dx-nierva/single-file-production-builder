@@ -1,6 +1,6 @@
 import './style.css'
 import { createStore, createInitialState } from './store.js'
-import { mount, update, setDragActive } from './render.js'
+import { update, setDragActive } from './render.js'
 import * as files from './files.js'
 import { createUploader } from './upload.js'
 import { collectDroppedInputs } from './drop.js'
@@ -11,7 +11,6 @@ const root = document.querySelector('#app')
 const store = createStore(createInitialState())
 const { ingest, fetchFromUrl } = createUploader(store)
 
-mount(root)
 store.subscribe((state) => update(root, state))
 update(root, store.getState())
 
