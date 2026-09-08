@@ -393,7 +393,7 @@ body {
 .empty-rule {
   border: 0;
   border-top: 1px dashed var(--border-strong);
-  margin: 0 0 var(--space-4);
+  margin: var(--space-4) 0 var(--space-4);
 }
 
 .row-2 {
