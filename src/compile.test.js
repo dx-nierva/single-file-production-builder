@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { compile, describeSavings } from './compile.js'
+import { formatSize } from './files.js'
 
 function project(entries) {
   const files = new Map()
@@ -375,6 +376,62 @@ describe('compile', () => {
       expect(second.stats).toEqual(first.stats)
       expect(second.log.map((e) => e.step)).toEqual(first.log.map((e) => e.step))
       expect(second.code).toBe(first.code)
+    })
+  })
+
+  describe('CSS @import resolution', () => {
+    it('inlines a nested @import end to end: output, stats, and log all correct', () => {
+      const files = project({
+        'index.html': {
+          type: 'text/html',
+          content: '<link rel="stylesheet" href="style.css">',
+        },
+        'style.css': {
+          type: 'text/css',
+          content: '@import url("base.css");\nbody { margin: 0; }',
+        },
+        'base.css': { type: 'text/css', content: '.base { color: red; }' },
+      })
+      const entrySize = files.get('index.html').size
+      const styleSize = files.get('style.css').size
+      const baseSize = files.get('base.css').size
+
+      const { code, stats, log } = compile(files, 'index.html')
+
+      expect(code).toContain('.base{color: red;}body{margin: 0;}')
+      expect(code).not.toContain('@import')
+
+      expect(stats.originalBytes).toBe(entrySize + styleSize + baseSize)
+      expect(stats.matchedCount).toBe(2)
+      expect(stats.missingCount).toBe(0)
+
+      expect(log.some((e) => e.message === 'Inlined base.css via @import')).toBe(true)
+      const finalLine = log.find((e) => e.message.startsWith('Inlined style.css ('))
+      expect(finalLine).toBeDefined()
+      expect(finalLine.message).toBe(
+        `Inlined style.css (${formatSize(styleSize + baseSize)} -> ${formatSize(bytesOf('.base{color: red;}body{margin: 0;}'))})`,
+      )
+    })
+
+    it('reports a missing nested @import without failing the top-level stylesheet', () => {
+      const files = project({
+        'index.html': {
+          type: 'text/html',
+          content: '<link rel="stylesheet" href="style.css">',
+        },
+        'style.css': {
+          type: 'text/css',
+          content: '@import url("gone.css");\nbody { margin: 0; }',
+        },
+      })
+
+      const { code, stats, log } = compile(files, 'index.html')
+
+      expect(code).not.toContain('@import')
+      expect(code).toContain('body{margin: 0;}')
+      expect(stats.matchedCount).toBe(1)
+      expect(stats.missingCount).toBe(1)
+      expect(log.some((e) => e.message === 'gone.css not found - @import skipped')).toBe(true)
     })
   })
 

@@ -25,7 +25,7 @@ function isWhitespace(char) {
  * A raw line terminator ends it rather than continuing it, in both languages
  * this module handles, so CSS and JS strings share this one reader.
  */
-function readString(source, start) {
+export function readString(source, start) {
   const quote = source[start]
 
   for (let i = start + 1; i < source.length; i += 1) {
@@ -46,7 +46,7 @@ function readString(source, start) {
  * unquoted URL may hold `/*`, spaces or anything else that would confuse the
  * ordinary scanner.
  */
-function readUrl(source, start) {
+export function readUrl(source, start) {
   let i = start + 4 // past "url("
 
   while (i < source.length) {
@@ -67,7 +67,7 @@ function readUrl(source, start) {
 }
 
 /** True when `url(` starts here and is not the tail of a longer identifier. */
-function startsUrl(source, i) {
+export function startsUrl(source, i) {
   if (source.slice(i, i + 4).toLowerCase() !== 'url(') return false
 
   const before = source[i - 1]

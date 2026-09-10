@@ -15,6 +15,7 @@
 import { classifyNode, resolveHref, classify } from './references.js'
 import { minifySource } from './minify.js'
 import { formatSize } from './files.js'
+import { resolveCssImports } from './css-imports.js'
 
 const encoder = new TextEncoder()
 
@@ -113,13 +114,64 @@ export function compile(files, entryPath) {
     matchedCount += 1
     originalBytes += file.size
 
-    const { code: minified, warning } = minifySource(file.content, file.type)
+    // A stylesheet's own @import statements are resolved before minifying,
+    // so the tracked "before" size for its own log line below has to grow
+    // by whatever nested imports actually got inlined.
+    let contentToMinify = file.content
+    let stylesheetOriginalBytes = file.size
+
+    if (reference.kind === 'stylesheet') {
+      const { code: expanded, events } = resolveCssImports(resolvedPath, files)
+      contentToMinify = expanded
+
+      for (const event of events) {
+        if (event.status === 'matched') {
+          matchedCount += 1
+          stylesheetOriginalBytes += event.size
+          log.push({
+            step: 'inline',
+            level: 'info',
+            message: `Inlined ${event.target} via @import`,
+            at: now(),
+          })
+        } else if (event.status === 'missing') {
+          missingCount += 1
+          log.push({
+            step: 'skip',
+            level: 'warn',
+            message: `${event.target} not found - @import skipped`,
+            at: now(),
+          })
+        } else if (event.status === 'external') {
+          externalCount += 1
+          log.push({
+            step: 'external',
+            level: 'info',
+            message: `Left @import ${event.target} as an external reference`,
+            at: now(),
+          })
+        } else {
+          // circular
+          missingCount += 1
+          log.push({
+            step: 'skip',
+            level: 'warn',
+            message: `${event.target} imports its own importer - @import skipped to avoid a cycle`,
+            at: now(),
+          })
+        }
+      }
+
+      originalBytes += stylesheetOriginalBytes - file.size
+    }
+
+    const { code: minified, warning } = minifySource(contentToMinify, file.type)
 
     if (warning === null) {
       log.push({
         step: 'inline',
         level: 'info',
-        message: `Inlined ${resolvedPath} (${formatSize(file.size)} -> ${formatSize(byteLength(minified))})`,
+        message: `Inlined ${resolvedPath} (${formatSize(stylesheetOriginalBytes)} -> ${formatSize(byteLength(minified))})`,
         at: now(),
       })
     } else {
