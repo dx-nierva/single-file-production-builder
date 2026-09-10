@@ -150,6 +150,31 @@ export function compile(files, entryPath) {
             message: `Left @import ${event.target} as an external reference`,
             at: now(),
           })
+        } else if (event.status === 'embedded') {
+          matchedCount += 1
+          stylesheetOriginalBytes += event.size
+          log.push({
+            step: 'inline',
+            level: 'info',
+            message: `Embedded ${event.target} as a data URI`,
+            at: now(),
+          })
+        } else if (event.status === 'asset-missing') {
+          missingCount += 1
+          log.push({
+            step: 'skip',
+            level: 'warn',
+            message: `${event.target} not found - left unresolved`,
+            at: now(),
+          })
+        } else if (event.status === 'asset-external') {
+          externalCount += 1
+          log.push({
+            step: 'external',
+            level: 'info',
+            message: `Left ${event.target} as an external reference`,
+            at: now(),
+          })
         } else {
           // circular
           missingCount += 1

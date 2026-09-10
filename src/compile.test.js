@@ -435,6 +435,84 @@ describe('compile', () => {
     })
   })
 
+  describe('binary asset inlining', () => {
+    it('embeds a matched background-image end to end: output, stats, and log all correct', () => {
+      const files = project({
+        'index.html': {
+          type: 'text/html',
+          content: '<link rel="stylesheet" href="style.css">',
+        },
+        'style.css': {
+          type: 'text/css',
+          content: 'div { background: url("logo.png"); }',
+        },
+      })
+      files.set('logo.png', {
+        path: 'logo.png',
+        name: 'logo.png',
+        type: 'image/png',
+        size: 12,
+        content: null,
+        base64: 'ZmFrZS1wbmctYnl0ZXM=',
+      })
+      const entrySize = files.get('index.html').size
+      const styleSize = files.get('style.css').size
+
+      const { code, stats, log } = compile(files, 'index.html')
+
+      expect(code).toContain('url("data:image/png;base64,ZmFrZS1wbmctYnl0ZXM=")')
+      expect(stats.originalBytes).toBe(entrySize + styleSize + 12)
+      expect(stats.matchedCount).toBe(2)
+      expect(stats.missingCount).toBe(0)
+      expect(stats.externalCount).toBe(0)
+      expect(log.some((e) => e.message === 'Embedded logo.png as a data URI')).toBe(true)
+    })
+
+    it('reports a missing asset target without failing the top-level stylesheet', () => {
+      const files = project({
+        'index.html': {
+          type: 'text/html',
+          content: '<link rel="stylesheet" href="style.css">',
+        },
+        'style.css': {
+          type: 'text/css',
+          content: 'div { background: url("gone.png"); }',
+        },
+      })
+
+      const { code, stats, log } = compile(files, 'index.html')
+
+      expect(code).toContain('url("gone.png")')
+      expect(stats.matchedCount).toBe(1)
+      expect(stats.missingCount).toBe(1)
+      expect(log.some((e) => e.message === 'gone.png not found - left unresolved')).toBe(true)
+    })
+
+    it('leaves an external asset reference alone and logs it', () => {
+      const files = project({
+        'index.html': {
+          type: 'text/html',
+          content: '<link rel="stylesheet" href="style.css">',
+        },
+        'style.css': {
+          type: 'text/css',
+          content: 'div { background: url("https://cdn.example.com/logo.png"); }',
+        },
+      })
+
+      const { code, stats, log } = compile(files, 'index.html')
+
+      expect(code).toContain('url("https://cdn.example.com/logo.png")')
+      expect(stats.matchedCount).toBe(1)
+      expect(stats.externalCount).toBe(1)
+      expect(
+        log.some(
+          (e) => e.message === 'Left https://cdn.example.com/logo.png as an external reference',
+        ),
+      ).toBe(true)
+    })
+  })
+
   describe('describeSavings', () => {
     it('reads "smaller" when the compiled size is less than or equal to original', () => {
       expect(describeSavings(100, 50)).toBe('50% smaller')

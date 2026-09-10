@@ -25,6 +25,14 @@ const EXTENSION_TYPES = {
   png: 'image/png',
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  ico: 'image/x-icon',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+  eot: 'application/vnd.ms-fontobject',
 }
 
 /* Browsers disagree on the JavaScript media type, so collapse the variants onto
@@ -39,7 +47,14 @@ const TYPE_ALIASES = {
 
 const TEXT_TYPES = new Set(['text/html', 'text/css', 'text/javascript'])
 
+/** Font MIME types with no shared "font/" or "image/" prefix to test for. */
+const NAMED_ASSET_TYPES = new Set(['application/vnd.ms-fontobject'])
+
 const FALLBACK_TYPE = 'application/octet-stream'
+
+/** Base64 conversion in fixed-size chunks: a single spread over a large
+    Uint8Array can overflow the call stack that String.fromCharCode(...) uses. */
+const BASE64_CHUNK = 0x8000
 
 /**
  * Clean one raw path into its relative form. Does not strip the common root
@@ -86,6 +101,25 @@ export function isTextType(type) {
   return TEXT_TYPES.has(type)
 }
 
+/**
+ * Whether `type` is an image or font we know how to embed as a data URI.
+ * Feature 11's css-imports.js consults this before rewriting a matched
+ * `url(...)` target; anything else matched through `url(...)` is left
+ * untouched rather than guessed at.
+ */
+export function isAssetType(type) {
+  return type.startsWith('image/') || type.startsWith('font/') || NAMED_ASSET_TYPES.has(type)
+}
+
+/** Uint8Array -> base64, chunked so a large file cannot overflow the stack. */
+export function bytesToBase64(bytes) {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += BASE64_CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK))
+  }
+  return btoa(binary)
+}
+
 export function formatSize(bytes) {
   if (!Number.isFinite(bytes) || bytes < 0) return `0${NBSP}B`
   if (bytes < KB) return `${Math.round(bytes)}${NBSP}B`
@@ -114,10 +148,13 @@ export function downloadName(rootName) {
 
 /**
  * Build one FileEntry. `path` must already be normalized and root-stripped.
- * Only text is decoded; binary content waits for feature 10.
+ * Text is decoded into `content`; a recognized image or font type is instead
+ * base64-encoded into `base64` for feature 11's asset-embedding to use. A
+ * binary type that is neither gets both fields `null`.
  */
 export async function readFileEntry(file, path) {
   const type = inferType(file.type, path)
+  const isAsset = isAssetType(type)
 
   return {
     path,
@@ -125,6 +162,7 @@ export async function readFileEntry(file, path) {
     type,
     size: file.size,
     content: isTextType(type) ? await file.text() : null,
+    base64: isAsset ? bytesToBase64(new Uint8Array(await file.arrayBuffer())) : null,
   }
 }
 

@@ -6,10 +6,18 @@
  * @import-shaped substring inside a string or comment is never mistaken
  * for a real statement, and resolveHref (feature 2) so path resolution
  * never diverges from every other reference in this app.
+ *
+ * The same walk also embeds any other url(...) it finds - a background
+ * image, an @font-face source, and so on (feature 11). This runs inside the
+ * per-file recursion rather than as a second pass over the flattened output,
+ * because a nested @import-ed file's own relative url(...) has to resolve
+ * against that file's own path, not the top-level stylesheet's; once the
+ * text is spliced into the parent's output that distinction is gone.
  */
 
 import { readString, readUrl, startsUrl } from './minify.js'
 import { resolveHref } from './references.js'
+import { isAssetType } from './files.js'
 
 function isSpace(char) {
   return char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '\f'
@@ -30,6 +38,43 @@ function unwrapQuotes(inner) {
   const last = inner[inner.length - 1]
   if ((first === '"' || first === "'") && first === last) return inner.slice(1, -1)
   return inner
+}
+
+/** The unquoted, trimmed target inside a `url(...)` token (the full
+    `source.slice(start, end)` text, including the "url(" and ")"). */
+function urlTarget(token) {
+  return unwrapQuotes(token.slice(4, -1).trim())
+}
+
+/**
+ * Resolve one non-@import url(...) token found while walking `path`'s own
+ * source. Returns the token unchanged (with an event describing why) for an
+ * empty, external, missing, or matched-but-non-asset target; returns a
+ * rewritten data-URI token, with an `embedded` event, for a matched image or
+ * font. Leaving a matched-but-non-asset target untouched with no event is
+ * deliberate: this feature only knows how to embed images and fonts.
+ */
+function embedAssetUrl(token, path, files, events) {
+  const target = urlTarget(token)
+  if (target === '') return token
+
+  const { resolvedPath, external } = resolveHref(target, path)
+
+  if (external) {
+    events.push({ status: 'asset-external', target })
+    return token
+  }
+
+  if (resolvedPath === null || !files.has(resolvedPath)) {
+    events.push({ status: 'asset-missing', target })
+    return token
+  }
+
+  const asset = files.get(resolvedPath)
+  if (!isAssetType(asset.type) || asset.base64 == null) return token
+
+  events.push({ status: 'embedded', target: resolvedPath, size: asset.size })
+  return `url("data:${asset.type};base64,${asset.base64}")`
 }
 
 /**
@@ -60,7 +105,15 @@ function parseImport(source, start) {
   }
 
   const semi = source.indexOf(';', i)
-  if (semi === -1) return null
+  if (semi === -1) {
+    // A recognizable url()/string target with no closing `;` anywhere before
+    // EOF: nothing later in the file can be a valid statement either, so the
+    // caller leaves everything from here to the end untouched. `tail: null`
+    // (rather than falling through as if no target had been found at all)
+    // tells the caller this target was already consumed here, so the
+    // general url() branch must not re-examine it as a standalone asset.
+    return { target, tail: null, end: source.length }
+  }
 
   return { target, tail: source.slice(i, semi), end: semi + 1 }
 }
@@ -94,7 +147,11 @@ export function resolveCssImports(path, files, seen = new Set()) {
         out += source.slice(i)
         break
       }
-      out += source.slice(i, end)
+      // @import's own url(...) is fully consumed by isImportKeywordAt/
+      // parseImport below before this branch ever runs at that position, so
+      // any url(...) reaching here is an ordinary reference (background
+      // image, @font-face source, etc.), never an @import target.
+      out += embedAssetUrl(source.slice(i, end), path, files, events)
       i = end
       continue
     }
@@ -115,6 +172,15 @@ export function resolveCssImports(path, files, seen = new Set()) {
 
       if (parsed) {
         const { target, tail, end } = parsed
+
+        // No closing `;` was found before EOF: leave the untouched target
+        // (and everything after it) exactly as authored, without letting the
+        // general url() branch re-examine it as a standalone asset.
+        if (tail === null) {
+          out += source.slice(i, end)
+          i = end
+          continue
+        }
 
         // A media/supports()/layer()-qualified import is invisible to this
         // feature entirely - left as ordinary text, no event.

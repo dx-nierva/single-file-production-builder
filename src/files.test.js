@@ -3,6 +3,8 @@ import {
   normalizePath,
   findCommonRoot,
   inferType,
+  isAssetType,
+  bytesToBase64,
   formatSize,
   buildFileEntries,
   downloadName,
@@ -13,7 +15,16 @@ import {
 const NBSP = ' '
 
 function file(body, type = '') {
-  return { size: body.length, type, text: async () => body }
+  return {
+    size: body.length,
+    type,
+    text: async () => body,
+    arrayBuffer: async () => {
+      const bytes = new Uint8Array(body.length)
+      for (let i = 0; i < body.length; i += 1) bytes[i] = body.charCodeAt(i)
+      return bytes.buffer
+    },
+  }
 }
 
 function input(rawPath, entry) {
@@ -80,6 +91,52 @@ describe('inferType', () => {
   })
 })
 
+describe('inferType asset extensions', () => {
+  it('recognises the added image and font extensions', () => {
+    expect(inferType('', 'x/a.gif')).toBe('image/gif')
+    expect(inferType('', 'x/a.webp')).toBe('image/webp')
+    expect(inferType('', 'x/a.ico')).toBe('image/x-icon')
+    expect(inferType('', 'x/a.woff')).toBe('font/woff')
+    expect(inferType('', 'x/a.woff2')).toBe('font/woff2')
+    expect(inferType('', 'x/a.ttf')).toBe('font/ttf')
+    expect(inferType('', 'x/a.otf')).toBe('font/otf')
+    expect(inferType('', 'x/a.eot')).toBe('application/vnd.ms-fontobject')
+  })
+})
+
+describe('isAssetType', () => {
+  it('accepts image and font MIME types', () => {
+    expect(isAssetType('image/png')).toBe(true)
+    expect(isAssetType('image/svg+xml')).toBe(true)
+    expect(isAssetType('font/woff2')).toBe(true)
+    expect(isAssetType('application/vnd.ms-fontobject')).toBe(true)
+  })
+
+  it('rejects text and other binary types', () => {
+    expect(isAssetType('text/css')).toBe(false)
+    expect(isAssetType('text/javascript')).toBe(false)
+    expect(isAssetType('application/octet-stream')).toBe(false)
+    expect(isAssetType('application/json')).toBe(false)
+  })
+})
+
+describe('bytesToBase64', () => {
+  it('round-trips a small byte sequence', () => {
+    const bytes = new Uint8Array([0, 1, 2, 253, 254, 255, 65, 66, 67])
+    const encoded = bytesToBase64(bytes)
+    const decoded = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0))
+    expect([...decoded]).toEqual([...bytes])
+  })
+
+  it('round-trips a buffer large enough to force more than one chunk', () => {
+    const bytes = new Uint8Array(200000)
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = i % 256
+    const encoded = bytesToBase64(bytes)
+    const decoded = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0))
+    expect([...decoded]).toEqual([...bytes])
+  })
+})
+
 describe('formatSize', () => {
   it('shows whole bytes below a kilobyte', () => {
     expect(formatSize(0)).toBe(`0${NBSP}B`)
@@ -129,6 +186,27 @@ describe('buildFileEntries', () => {
     // Only HTML, CSS and JS are decoded; feature 10 handles the rest.
     expect(files.get('assets/logo.svg').content).toBeNull()
     expect(files.get('README.md').content).toBeNull()
+  })
+
+  it('base64-encodes a recognized image or font type, leaving content null', async () => {
+    const { files } = await buildFileEntries([
+      ...project(),
+      input('site/assets/font.woff2', file('fake-font-bytes', 'font/woff2')),
+    ])
+
+    const svg = files.get('assets/logo.svg')
+    expect(svg.content).toBeNull()
+    expect(svg.base64).toBe(btoa('<svg/>'))
+
+    const font = files.get('assets/font.woff2')
+    expect(font.content).toBeNull()
+    expect(font.base64).toBe(btoa('fake-font-bytes'))
+  })
+
+  it('leaves base64 null for a non-text, non-asset type', async () => {
+    const { files } = await buildFileEntries(project())
+
+    expect(files.get('README.md').base64).toBeNull()
   })
 
   it('carries the name, type and size of each file', async () => {
