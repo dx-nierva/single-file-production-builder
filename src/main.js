@@ -9,7 +9,7 @@ import { writeTheme } from './theme.js'
 
 const root = document.querySelector('#app')
 const store = createStore(createInitialState())
-const { ingest, fetchFromUrl } = createUploader(store)
+const { ingest, fetchFromUrl, cancel } = createUploader(store)
 
 store.subscribe((state) => update(root, state))
 update(root, store.getState())
@@ -115,6 +115,20 @@ root.querySelector('[data-preview]').addEventListener('click', () => {
   // the preview tab failing to load. One retained Blob per preview click,
   // freed when the page closes or reloads, is the accepted, bounded cost of
   // never risking a visibly broken preview.
+})
+
+root.querySelector('[data-clear]').addEventListener('click', () => {
+  // Invalidate any in-flight ingest/fetchFromUrl first, so a run already
+  // under way cannot land its result after the reset below.
+  cancel()
+  store.setState(createInitialState())
+  root.querySelector('[data-input-url]').value = ''
+
+  // announce() intentionally stays silent for the idle status it just reset
+  // to (correct on first page load, not here), so this writes the
+  // confirmation directly - the same documented exception setDragActive
+  // already makes to render.js's "only reconciler" rule.
+  root.querySelector('[data-status]').textContent = 'Cleared. Ready for a new project.'
 })
 
 root.querySelector('[data-theme-toggle]').addEventListener('click', () => {

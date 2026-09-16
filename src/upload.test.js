@@ -58,8 +58,8 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 function setup() {
   const store = createStore(createInitialState())
-  const { ingest, fetchFromUrl } = createUploader(store)
-  return { store, ingest, fetchFromUrl }
+  const { ingest, fetchFromUrl, cancel } = createUploader(store)
+  return { store, ingest, fetchFromUrl, cancel }
 }
 
 describe('a single upload', () => {
@@ -318,3 +318,36 @@ describe('an upload that offers no files', () => {
     expect(store.getState().errorMessage).toContain('Device not readable')
   })
 })
+
+describe('cancel', () => {
+  it('stops a cancelled run from applying a success it resolves with afterward', async () => {
+    const { store, ingest, cancel } = setup()
+    const slow = deferred()
+
+    const run = ingest(slow.promise)
+    expect(store.getState().uploadStatus).toBe('reading')
+
+    cancel()
+    const stateAtCancel = store.getState()
+
+    slow.resolve([input('site/a.css', file('a{}'))])
+    await run
+
+    expect(store.getState()).toBe(stateAtCancel)
+  })
+
+  it('stops a cancelled run from applying an error it resolves with afterward', async () => {
+    const { store, ingest, cancel } = setup()
+    const slow = deferred()
+
+    const run = ingest(slow.promise)
+    cancel()
+    const stateAtCancel = store.getState()
+
+    slow.resolve([input('broken/x.css', failing('Device not readable'))])
+    await run
+
+    expect(store.getState()).toBe(stateAtCancel)
+  })
+})
+

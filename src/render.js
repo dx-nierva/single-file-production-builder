@@ -121,6 +121,7 @@ export function update(root, state) {
   const canAct = compiledOutput !== null
   root.querySelector('[data-download]').disabled = !canAct
   root.querySelector('[data-preview]').disabled = !canAct
+  root.querySelector('[data-clear]').disabled = uploadStatus === 'idle'
 
   root.querySelector('[data-result-status]').textContent =
     compiledOutput === null ? 'not compiled' : 'compiled'

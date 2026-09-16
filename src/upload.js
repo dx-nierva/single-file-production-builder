@@ -115,7 +115,17 @@ export function createUploader(store) {
     }
   }
 
-  return { ingest, fetchFromUrl }
+  /**
+   * Invalidates whatever ingest/fetchFromUrl run is currently in flight, the
+   * same way a newer call already invalidates an older one, without itself
+   * starting a new run or writing any state. Lets a caller (the Clear button)
+   * reset the store without a cancelled read or fetch clobbering it later.
+   */
+  function cancel() {
+    generationCounter += 1
+  }
+
+  return { ingest, fetchFromUrl, cancel }
 }
 
 /** Not every thrown value is an Error, and "undefined" is not a message. */
