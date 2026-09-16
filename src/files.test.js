@@ -6,6 +6,7 @@ import {
   isAssetType,
   bytesToBase64,
   formatSize,
+  removeFile,
   buildFileEntries,
   downloadName,
 } from './files.js'
@@ -276,3 +277,35 @@ describe('downloadName', () => {
     expect(downloadName(null)).toBe('index.html')
   })
 })
+
+describe('removeFile', () => {
+  it('removes the target path and leaves every other entry exactly as it was', () => {
+    const a = { path: 'a.css', name: 'a.css', type: 'text/css', size: 1, content: 'a' }
+    const b = { path: 'b.css', name: 'b.css', type: 'text/css', size: 1, content: 'b' }
+    const files = new Map([['a.css', a], ['b.css', b]])
+
+    const result = removeFile(files, 'a.css')
+
+    expect([...result.keys()]).toEqual(['b.css'])
+    expect(result.get('b.css')).toBe(b)
+  })
+
+  it('returns a new Map instance when the path existed', () => {
+    const files = new Map([['a.css', { path: 'a.css', name: 'a.css', type: 'text/css', size: 1, content: 'a' }]])
+    const result = removeFile(files, 'a.css')
+    expect(result).not.toBe(files)
+  })
+
+  it('returns the identical reference when the path did not exist', () => {
+    const files = new Map([['a.css', { path: 'a.css', name: 'a.css', type: 'text/css', size: 1, content: 'a' }]])
+    const result = removeFile(files, 'gone.css')
+    expect(result).toBe(files)
+  })
+
+  it('never mutates the original Map', () => {
+    const files = new Map([['a.css', { path: 'a.css', name: 'a.css', type: 'text/css', size: 1, content: 'a' }]])
+    removeFile(files, 'a.css')
+    expect(files.has('a.css')).toBe(true)
+  })
+})
+

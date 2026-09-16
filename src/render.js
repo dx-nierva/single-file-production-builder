@@ -233,6 +233,10 @@ function renderFileList(root, list, state) {
     row.querySelector('[data-badge-entry]').hidden = !isEntry
     row.querySelector('[data-badge-unreferenced]').hidden = !unreferenced
 
+    const removeButton = row.querySelector('[data-remove-file]')
+    removeButton.dataset.path = entry.path
+    removeButton.setAttribute('aria-label', `Remove ${entry.path}`)
+
     list.append(row)
   }
 }

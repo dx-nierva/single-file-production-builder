@@ -205,3 +205,15 @@ export async function buildFileEntries(inputs) {
 
   return { files, rootName }
 }
+
+/**
+ * A new Map with `path` removed, or the exact same `files` reference when
+ * `path` is absent - lets a caller skip its own presence check, and makes a
+ * no-op removal a no-op re-render too. Never mutates `files`.
+ */
+export function removeFile(files, path) {
+  if (!files.has(path)) return files
+  const next = new Map(files)
+  next.delete(path)
+  return next
+}

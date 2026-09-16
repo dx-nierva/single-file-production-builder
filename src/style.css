@@ -450,6 +450,33 @@ body {
   text-align: right;
 }
 
+/* Only the Files card's rows get a remove control; References and Log reuse
+   .filerow but keep their three-column layout. */
+[data-file-list] .filerow {
+  grid-template-columns: 1fr auto auto auto;
+}
+
+.filerow-remove {
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  font-size: var(--text-base);
+  line-height: 1;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.filerow-remove:hover {
+  color: var(--error);
+  background: var(--error-bg);
+}
+
+.filerow-remove:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
 /* status and notices */
 
 .sr-only {

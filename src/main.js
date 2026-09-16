@@ -5,6 +5,7 @@ import * as files from './files.js'
 import { createUploader } from './upload.js'
 import { collectDroppedInputs } from './drop.js'
 import { compile } from './compile.js'
+import { analyze } from './references.js'
 import { writeTheme } from './theme.js'
 
 const root = document.querySelector('#app')
@@ -115,6 +116,37 @@ root.querySelector('[data-preview]').addEventListener('click', () => {
   // the preview tab failing to load. One retained Blob per preview click,
   // freed when the page closes or reloads, is the accepted, bounded cost of
   // never risking a visibly broken preview.
+})
+
+// One delegated listener on the stable list container: renderFileList
+// replaces the row children on every render, but never the container itself,
+// so this survives every re-render without needing to be re-attached.
+root.querySelector('[data-file-list]').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-remove-file]')
+  if (!button) return
+
+  const { uploadedFiles } = store.getState()
+  const nextFiles = files.removeFile(uploadedFiles, button.dataset.path)
+  const { entryPath, references } = analyze(nextFiles)
+
+  store.setState({
+    uploadedFiles: nextFiles,
+    entryPath,
+    references,
+    uploadStatus: nextFiles.size === 0 ? 'idle' : 'success',
+    errorMessage: null,
+    compiledOutput: null,
+    stats: null,
+    log: [],
+  })
+
+  // announce() already recomputes its summary from the current state on
+  // every render, so a removal that leaves files behind is covered for
+  // free. It intentionally stays silent for `idle` (correct on first load,
+  // not here), so the last-file case gets the same direct write Clear uses.
+  if (nextFiles.size === 0) {
+    root.querySelector('[data-status]').textContent = 'All files removed. Ready for a new project.'
+  }
 })
 
 root.querySelector('[data-clear]').addEventListener('click', () => {
