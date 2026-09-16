@@ -122,6 +122,12 @@ export function update(root, state) {
   root.querySelector('[data-download]').disabled = !canAct
   root.querySelector('[data-preview]').disabled = !canAct
   root.querySelector('[data-clear]').disabled = uploadStatus === 'idle'
+  root.querySelector('[data-view-source]').disabled = !canAct
+  // A stale or empty panel must never be visible: force it shut whenever
+  // there is nothing compiled to show, regardless of how it got that way
+  // (Clear, a file removal, or simply never having compiled yet).
+  if (!canAct) root.querySelector('[data-source-panel]').hidden = true
+  root.querySelector('[data-source-output]').value = compiledOutput ?? ''
 
   root.querySelector('[data-result-status]').textContent =
     compiledOutput === null ? 'not compiled' : 'compiled'

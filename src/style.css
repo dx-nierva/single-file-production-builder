@@ -477,6 +477,20 @@ body {
   outline-offset: 1px;
 }
 
+.source-output {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 240px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
 /* status and notices */
 
 .sr-only {

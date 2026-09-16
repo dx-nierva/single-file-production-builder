@@ -163,6 +163,26 @@ root.querySelector('[data-clear]').addEventListener('click', () => {
   root.querySelector('[data-status]').textContent = 'Cleared. Ready for a new project.'
 })
 
+root.querySelector('[data-view-source]').addEventListener('click', () => {
+  const panel = root.querySelector('[data-source-panel]')
+  panel.hidden = !panel.hidden
+})
+
+root.querySelector('[data-copy-source]').addEventListener('click', async () => {
+  const textarea = root.querySelector('[data-source-output]')
+  const status = root.querySelector('[data-status]')
+
+  try {
+    await navigator.clipboard.writeText(textarea.value)
+    status.textContent = 'Compiled source copied to clipboard.'
+  } catch {
+    // No Clipboard API, an insecure context, or the user denied permission:
+    // select the text so Ctrl+C/Cmd+C still works instead of failing silently.
+    textarea.select()
+    status.textContent = 'Could not copy automatically - the text is selected, press Ctrl+C.'
+  }
+})
+
 root.querySelector('[data-theme-toggle]').addEventListener('click', () => {
   const next = store.getState().theme === 'dark' ? 'light' : 'dark'
   store.setState({ theme: next })

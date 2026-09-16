@@ -188,8 +188,25 @@
             <button class="btn btn-ghost" type="button" disabled data-clear>
               Clear
             </button>
+            <button class="btn btn-ghost" type="button" disabled data-view-source>
+              View source
+            </button>
             <span class="card-meta" data-compile-hint>Add files to enable</span>
           </div>
+        </section>
+
+        <section class="card" data-source-panel hidden>
+          <div class="card-head">
+            <h2 class="card-title">Compiled source</h2>
+            <button class="btn btn-ghost" type="button" data-copy-source>Copy</button>
+          </div>
+          <hr class="empty-rule">
+          <textarea
+            class="source-output"
+            data-source-output
+            readonly
+            aria-label="Compiled HTML source"
+          ></textarea>
         </section>
       </div>
     </div>
