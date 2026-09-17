@@ -128,38 +128,32 @@
               <span class="card-meta" data-result-status>not compiled</span>
             </div>
             <hr class="empty-rule">
-            <ul class="filelist" data-result-stats hidden>
-              <li class="filerow">
-                <span class="filerow-path">Original</span>
-                <span class="filerow-type"></span>
-                <span class="filerow-size" data-stat-original></span>
-              </li>
-              <li class="filerow">
-                <span class="filerow-path">Compiled</span>
-                <span class="filerow-type"></span>
-                <span class="filerow-size" data-stat-compiled></span>
-              </li>
-              <li class="filerow">
-                <span class="filerow-path">Saved</span>
-                <span class="filerow-type"></span>
-                <span class="filerow-size" data-stat-saved></span>
-              </li>
-              <li class="filerow">
-                <span class="filerow-path">Matched</span>
-                <span class="filerow-type"></span>
-                <span class="filerow-size" data-stat-matched></span>
-              </li>
-              <li class="filerow">
-                <span class="filerow-path">Missing</span>
-                <span class="filerow-type"></span>
-                <span class="filerow-size" data-stat-missing></span>
-              </li>
-              <li class="filerow">
-                <span class="filerow-path">External</span>
-                <span class="filerow-type"></span>
-                <span class="filerow-size" data-stat-external></span>
-              </li>
-            </ul>
+            <div class="stat-grid" data-result-stats hidden>
+              <div class="stat-tile">
+                <span class="stat-label">Original</span>
+                <span class="stat-value" data-stat-original></span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-label">Compiled</span>
+                <span class="stat-value" data-stat-compiled></span>
+              </div>
+              <div class="stat-tile stat-tile-hero">
+                <span class="stat-label">Saved</span>
+                <span class="stat-value" data-stat-saved></span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-label">Matched</span>
+                <span class="stat-value stat-value-matched" data-stat-matched></span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-label">Missing</span>
+                <span class="stat-value stat-value-missing" data-stat-missing></span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-label">External</span>
+                <span class="stat-value stat-value-external" data-stat-external></span>
+              </div>
+            </div>
             <p class="empty" data-result-empty>Size and reference stats appear after compiling</p>
           </section>
         </div>
