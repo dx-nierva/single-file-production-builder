@@ -351,3 +351,61 @@ describe('cancel', () => {
   })
 })
 
+describe('readProgress', () => {
+  function manyInputs(count, overrides = {}) {
+    return Array.from({ length: count }, (_, i) =>
+      input(`site/file${i}.css`, overrides[i] ?? file('a{}')),
+    )
+  }
+
+  function pausedFile() {
+    let release
+    const entry = {
+      size: 4,
+      type: 'text/css',
+      text: () => new Promise((resolve) => { release = () => resolve('a{}') }),
+    }
+    return { entry, release: (...args) => release(...args) }
+  }
+
+  it('sets readProgress at each throttled tick, then resets it to null on success', async () => {
+    const { store, ingest } = setup()
+    const paused = pausedFile()
+    const inputs = manyInputs(50, { 24: paused.entry })
+
+    // Once file 25 is released, files 26-50 are all immediate and cascade
+    // straight through to completion in the same microtask turn, so there is
+    // no reliable window to catch an in-between state by timing alone.
+    // Subscribing records every value readProgress actually took on, however
+    // briefly, without depending on when the test happens to look.
+    const seen = []
+    store.subscribe((state) => seen.push(state.readProgress))
+
+    const run = ingest(inputs)
+    await flush()
+    expect(store.getState().readProgress).toBeNull()
+
+    paused.release()
+    await run
+
+    expect(seen).toContainEqual({ done: 25, total: 50 })
+    expect(store.getState().readProgress).toBeNull()
+  })
+
+  it('never lets a stale progress tick from a cancelled run overwrite newer state', async () => {
+    const { store, ingest, cancel } = setup()
+    const paused = pausedFile()
+    const inputs = manyInputs(50, { 24: paused.entry })
+
+    const run = ingest(inputs)
+    await flush()
+
+    cancel()
+    const stateAtCancel = store.getState()
+
+    paused.release()
+    await run
+
+    expect(store.getState()).toBe(stateAtCancel)
+  })
+})

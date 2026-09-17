@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   normalizePath,
   findCommonRoot,
@@ -265,6 +265,46 @@ describe('buildFileEntries', () => {
         }),
       ]),
     ).rejects.toThrow('could not be read')
+  })
+})
+
+describe('buildFileEntries progress reporting', () => {
+  function manyInputs(count) {
+    return Array.from({ length: count }, (_, i) =>
+      input(`site/file${i}.css`, file('a{}', 'text/css')),
+    )
+  }
+
+  it('calls onProgress exactly once, with done === total, below the computed interval', async () => {
+    const onProgress = vi.fn()
+    await buildFileEntries(manyInputs(3), onProgress)
+    expect(onProgress).toHaveBeenCalledTimes(1)
+    expect(onProgress).toHaveBeenCalledWith(3, 3)
+  })
+
+  it('calls onProgress at each interval multiple plus a final call when total is not a multiple', async () => {
+    const onProgress = vi.fn()
+    await buildFileEntries(manyInputs(60), onProgress)
+    expect(onProgress.mock.calls).toEqual([
+      [25, 60],
+      [50, 60],
+      [60, 60],
+    ])
+  })
+
+  it('does not repeat the final count when total already lands on an interval multiple', async () => {
+    const onProgress = vi.fn()
+    await buildFileEntries(manyInputs(50), onProgress)
+    expect(onProgress.mock.calls).toEqual([
+      [25, 50],
+      [50, 50],
+    ])
+  })
+
+  it('omitting onProgress does not throw and produces the same result as before', async () => {
+    const { files, rootName } = await buildFileEntries(manyInputs(30))
+    expect(rootName).toBe('site')
+    expect(files.size).toBe(30)
   })
 })
 

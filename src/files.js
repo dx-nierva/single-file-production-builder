@@ -176,7 +176,7 @@ export async function readFileEntry(file, path) {
  * Entries are inserted in sorted order so the picker and the drop path always
  * produce an identically ordered map for the same folder.
  */
-export async function buildFileEntries(inputs) {
+export async function buildFileEntries(inputs, onProgress = () => {}) {
   const normalized = inputs
     .map((input) => ({ file: input.file, path: normalizePath(input.rawPath) }))
     .filter((input) => input.path !== '')
@@ -197,10 +197,21 @@ export async function buildFileEntries(inputs) {
       return byBase !== 0 ? byBase : a.path.localeCompare(b.path)
     })
 
+  const total = prepared.length
+  // A fixed small interval alone would mean hundreds of reports for a huge
+  // drop (working against the exact case progress reporting targets); a
+  // fixed percentage alone would give zero visible reports for anything
+  // smaller than it. This caps a huge upload at roughly 100 reports while
+  // staying responsive for small and medium ones.
+  const interval = Math.max(25, Math.floor(total / 100))
+
   const files = new Map()
+  let done = 0
   for (const { file, path } of prepared) {
     // Last write wins on a duplicate path, which is what a Map gives us.
     files.set(path, await readFileEntry(file, path))
+    done += 1
+    if (done % interval === 0 || done === total) onProgress(done, total)
   }
 
   return { files, rootName }

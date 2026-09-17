@@ -24,7 +24,7 @@ export function createUploader(store) {
     const isCurrent = () => generation === generationCounter
     inFlight += 1
 
-    store.setState({ uploadStatus: 'reading', errorMessage: null })
+    store.setState({ uploadStatus: 'reading', errorMessage: null, readProgress: null })
 
     try {
       const inputs = await pending
@@ -49,7 +49,9 @@ export function createUploader(store) {
 
       if (!isCurrent()) return
 
-      const { files, rootName } = await buildFileEntries(inputs)
+      const { files, rootName } = await buildFileEntries(inputs, (done, total) => {
+        if (isCurrent()) store.setState({ readProgress: { done, total } })
+      })
       if (!isCurrent()) return
 
       // Analysing here keeps the files and what they reference in one state
@@ -66,6 +68,7 @@ export function createUploader(store) {
         compiledOutput: null,
         stats: null,
         log: [],
+        readProgress: null,
       })
     } catch (error) {
       if (!isCurrent()) return
@@ -75,6 +78,7 @@ export function createUploader(store) {
       store.setState({
         uploadStatus: 'error',
         errorMessage: `Could not read the selected files: ${describe(error)}`,
+        readProgress: null,
       })
     } finally {
       inFlight -= 1
@@ -86,7 +90,7 @@ export function createUploader(store) {
     const isCurrent = () => generation === generationCounter
     inFlight += 1
 
-    store.setState({ uploadStatus: 'reading', errorMessage: null })
+    store.setState({ uploadStatus: 'reading', errorMessage: null, readProgress: null })
 
     try {
       const { files, rootName } = await fetchProject(url)
@@ -103,13 +107,14 @@ export function createUploader(store) {
         compiledOutput: null,
         stats: null,
         log: [],
+        readProgress: null,
       })
     } catch (error) {
       if (!isCurrent()) return
 
       // fetchProject's messages are already complete, user-facing text, so
       // unlike ingest's generic read failure this needs no added prefix.
-      store.setState({ uploadStatus: 'error', errorMessage: error.message })
+      store.setState({ uploadStatus: 'error', errorMessage: error.message, readProgress: null })
     } finally {
       inFlight -= 1
     }

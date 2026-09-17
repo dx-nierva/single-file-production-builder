@@ -66,7 +66,7 @@ function renderTheme(root, state) {
 }
 
 function renderDropzone(root, state) {
-  const { uploadStatus, uploadedFiles, rootName, errorMessage } = state
+  const { uploadStatus, uploadedFiles, rootName, errorMessage, readProgress } = state
   const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
   const isReading = uploadStatus === 'reading'
 
@@ -78,6 +78,7 @@ function renderDropzone(root, state) {
   // rootName, errorMessage and every path or href come from the user's files,
   // so they are set as text, never interpolated into markup.
   root.querySelector('[data-drop-title]').textContent =
+    isReading && readProgress ? describeProgress(readProgress) :
     showsProject && rootName ? `${rootName}/` : copy.title
   root.querySelector('[data-drop-hint]').textContent = keptFiles
     ? 'The project you had loaded is unchanged.'
@@ -187,6 +188,10 @@ function describeCount(count, bytes) {
   if (count === 0) return '0 files'
   const label = count === 1 ? '1 file' : `${count} files`
   return `${label} · ${formatSize(bytes)}`
+}
+
+function describeProgress({ done, total }) {
+  return `Reading files (${done.toLocaleString()} of ${total.toLocaleString()})`
 }
 
 function totalBytes(uploadedFiles) {

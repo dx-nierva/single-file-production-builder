@@ -35,6 +35,7 @@ export function createInitialState() {
     uploadedFiles: new Map(),
     rootName: null,
     errorMessage: null,
+    readProgress: null,
 
     // feature 2: what the entry document points at
     entryPath: null,
