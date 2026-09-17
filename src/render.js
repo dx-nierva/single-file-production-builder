@@ -42,21 +42,19 @@ const LOG_BADGE = {
 }
 
 export function update(root, state) {
-  const {
-    uploadStatus,
-    uploadedFiles,
-    rootName,
-    errorMessage,
-    references,
-    entryPath,
-    compiledOutput,
-    stats,
-    log,
-    theme,
-  } = state
-  const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
-  const count = uploadedFiles.size
-  const isReading = uploadStatus === 'reading'
+  renderTheme(root, state)
+  renderDropzone(root, state)
+  renderWarningCard(root, state)
+  renderFileList(root, state)
+  renderReferences(root, state)
+  renderActionButtons(root, state)
+  renderStats(root, state)
+  renderLog(root, state)
+  announce(root, state)
+}
+
+function renderTheme(root, state) {
+  const { theme } = state
 
   // The one DOM write in this file that targets an element outside root,
   // kept here anyway so every DOM write still goes through update().
@@ -65,10 +63,16 @@ export function update(root, state) {
   const themeToggle = root.querySelector('[data-theme-toggle]')
   themeToggle.textContent = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
   themeToggle.setAttribute('aria-pressed', String(theme === 'dark'))
+}
+
+function renderDropzone(root, state) {
+  const { uploadStatus, uploadedFiles, rootName, errorMessage } = state
+  const copy = DROP_COPY[uploadStatus] ?? DROP_COPY.idle
+  const isReading = uploadStatus === 'reading'
 
   // A failed upload keeps whatever was already loaded, so the drop zone has to
   // keep naming that project rather than reverting to the empty invitation.
-  const keptFiles = uploadStatus === 'error' && count > 0
+  const keptFiles = uploadStatus === 'error' && uploadedFiles.size > 0
   const showsProject = uploadStatus === 'success' || keptFiles
 
   // rootName, errorMessage and every path or href come from the user's files,
@@ -88,31 +92,28 @@ export function update(root, state) {
   const errorCard = root.querySelector('[data-error-card]')
   errorCard.hidden = uploadStatus !== 'error'
   root.querySelector('[data-error-text]').textContent = errorMessage ?? ''
+}
 
-  root.querySelector('[data-file-count]').textContent = describeCount(
-    count,
-    totalBytes(uploadedFiles),
-  )
-
-  const fileList = root.querySelector('[data-file-list]')
-  renderFileList(root, fileList, state)
-  fileList.hidden = count === 0
-  root.querySelector('[data-file-empty]').hidden = count > 0
-
-  renderReferences(root, state)
+function renderWarningCard(root, state) {
+  const { uploadedFiles, entryPath, uploadStatus } = state
 
   // Only meaningful once the upload has settled: mid-read there is no analysis
   // yet, and the drop zone is already saying so.
   root.querySelector('[data-warning-card]').hidden = !(
-    count > 0 &&
-    state.entryPath === null &&
-    !isReading
+    uploadedFiles.size > 0 &&
+    entryPath === null &&
+    uploadStatus !== 'reading'
   )
+}
+
+function renderActionButtons(root, state) {
+  const { uploadStatus, uploadedFiles, entryPath, compiledOutput } = state
+  const isReading = uploadStatus === 'reading'
 
   // The caption explains the disabled state rather than disappearing and
   // leaving a bare dead button.
   root.querySelector('[data-compile-hint]').textContent =
-    count === 0 ? 'Add files to enable' : capitalize(referenceSummary(state))
+    uploadedFiles.size === 0 ? 'Add files to enable' : capitalize(referenceSummary(state))
 
   // Mid-read, entryPath still describes whatever was loaded before, so
   // compiling is gated on the read having settled, not just a non-null path.
@@ -128,24 +129,6 @@ export function update(root, state) {
   // (Clear, a file removal, or simply never having compiled yet).
   if (!canAct) root.querySelector('[data-source-panel]').hidden = true
   root.querySelector('[data-source-output]').value = compiledOutput ?? ''
-
-  root.querySelector('[data-result-status]').textContent =
-    compiledOutput === null ? 'not compiled' : 'compiled'
-
-  const resultStats = root.querySelector('[data-result-stats]')
-  renderStats(resultStats, stats)
-  resultStats.hidden = stats === null
-  root.querySelector('[data-result-empty]').hidden = stats !== null
-
-  root.querySelector('[data-log-count]').textContent =
-    log.length === 0 ? '' : `${log.length} ${log.length === 1 ? 'entry' : 'entries'}`
-
-  const logList = root.querySelector('[data-log-list]')
-  renderLog(root, logList, log)
-  logList.hidden = log.length === 0
-  root.querySelector('[data-log-empty]').hidden = log.length > 0
-
-  announce(root, state, count)
 }
 
 /** Drag feedback is transient, so it is not stored in state. */
@@ -157,8 +140,9 @@ export function setDragActive(root, isActive) {
  * One polite live region carries every status change, so a screen reader user
  * hears the outcome of a drop they cannot see.
  */
-function announce(root, state, count) {
-  const { uploadStatus, rootName, errorMessage } = state
+function announce(root, state) {
+  const { uploadStatus, rootName, errorMessage, uploadedFiles } = state
+  const count = uploadedFiles.size
   const region = root.querySelector('[data-status]')
 
   if (uploadStatus === 'reading') {
@@ -213,13 +197,20 @@ function totalBytes(uploadedFiles) {
   return total
 }
 
-function renderFileList(root, list, state) {
+function renderFileList(root, state) {
   const { uploadedFiles, entryPath, references } = state
+  const count = uploadedFiles.size
+
+  root.querySelector('[data-file-count]').textContent = describeCount(
+    count,
+    totalBytes(uploadedFiles),
+  )
 
   const referenced = new Set(
     references.map((reference) => reference.resolvedPath).filter(Boolean),
   )
 
+  const list = root.querySelector('[data-file-list]')
   const template = root.querySelector('[data-tpl-file-row]')
   list.replaceChildren()
   for (const entry of uploadedFiles.values()) {
@@ -245,6 +236,9 @@ function renderFileList(root, list, state) {
 
     list.append(row)
   }
+
+  list.hidden = count === 0
+  root.querySelector('[data-file-empty]').hidden = count > 0
 }
 
 function renderReferences(root, state) {
@@ -288,7 +282,12 @@ function describeNoReferences(fileCount, entryPath) {
 }
 
 /** The six rows already exist in index.html; only their values ever change. */
-function renderStats(list, stats) {
+function renderStats(root, state) {
+  const { stats, compiledOutput } = state
+
+  root.querySelector('[data-result-status]').textContent =
+    compiledOutput === null ? 'not compiled' : 'compiled'
+
   const values = stats ?? {
     originalBytes: 0,
     compiledBytes: 0,
@@ -298,15 +297,25 @@ function renderStats(list, stats) {
   }
   const saved = stats ? describeSavings(stats.originalBytes, stats.compiledBytes) : ''
 
+  const list = root.querySelector('[data-result-stats]')
   list.querySelector('[data-stat-original]').textContent = stats ? formatSize(values.originalBytes) : ''
   list.querySelector('[data-stat-compiled]').textContent = stats ? formatSize(values.compiledBytes) : ''
   list.querySelector('[data-stat-saved]').textContent = saved
   list.querySelector('[data-stat-matched]').textContent = stats ? String(values.matchedCount) : ''
   list.querySelector('[data-stat-missing]').textContent = stats ? String(values.missingCount) : ''
   list.querySelector('[data-stat-external]').textContent = stats ? String(values.externalCount) : ''
+
+  list.hidden = stats === null
+  root.querySelector('[data-result-empty]').hidden = stats !== null
 }
 
-function renderLog(root, list, log) {
+function renderLog(root, state) {
+  const { log } = state
+
+  root.querySelector('[data-log-count]').textContent =
+    log.length === 0 ? '' : `${log.length} ${log.length === 1 ? 'entry' : 'entries'}`
+
+  const list = root.querySelector('[data-log-list]')
   const template = root.querySelector('[data-tpl-log-row]')
   list.replaceChildren()
   for (const entry of log) {
@@ -321,6 +330,9 @@ function renderLog(root, list, log) {
 
     list.append(row)
   }
+
+  list.hidden = log.length === 0
+  root.querySelector('[data-log-empty]').hidden = log.length > 0
 }
 
 /** Every row template's content is exactly one <li>; clone that node directly
