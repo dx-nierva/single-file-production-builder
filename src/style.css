@@ -465,6 +465,28 @@ body {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.filelist::-webkit-scrollbar {
+  width: 6px;
+}
+
+.filelist::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filelist::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+
+.filelist::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .filerow {
