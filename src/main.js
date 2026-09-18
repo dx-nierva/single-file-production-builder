@@ -166,6 +166,7 @@ root.querySelector('[data-clear]').addEventListener('click', () => {
 root.querySelector('[data-view-source]').addEventListener('click', () => {
   const panel = root.querySelector('[data-source-panel]')
   panel.hidden = !panel.hidden
+  if (!panel.hidden) panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
 })
 
 root.querySelector('[data-copy-source]').addEventListener('click', async () => {
