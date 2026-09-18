@@ -408,4 +408,34 @@ describe('readProgress', () => {
 
     expect(store.getState()).toBe(stateAtCancel)
   })
+
+  it('is not blanked by an empty ingest landing while a different read is still in flight', async () => {
+    const { store, ingest } = setup()
+    const midway = pausedFile()
+    const atEnd = pausedFile()
+    // Pausing both the 25th and the very last file: releasing the first
+    // lets a real tick land (done=25) and the rest cascade up to the last
+    // file, where the run genuinely blocks again - still reading, not
+    // settled - so the interleaving below is real, not simulated.
+    const inputs = manyInputs(50, { 24: midway.entry, 49: atEnd.entry })
+
+    const run = ingest(inputs)
+    await flush()
+    midway.release()
+    await flush()
+    expect(store.getState().readProgress).toEqual({ done: 25, total: 50 })
+    expect(store.getState().uploadStatus).toBe('reading')
+
+    // An unrelated empty drop (a dragged link, a cancelled picker) lands
+    // while the real read above is still genuinely in flight.
+    await ingest([])
+
+    expect(store.getState().readProgress).toEqual({ done: 25, total: 50 })
+    expect(store.getState().uploadStatus).toBe('reading')
+
+    atEnd.release()
+    await run
+    expect(store.getState().readProgress).toBeNull()
+    expect(store.getState().uploadStatus).toBe('success')
+  })
 })

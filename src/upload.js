@@ -24,7 +24,7 @@ export function createUploader(store) {
     const isCurrent = () => generation === generationCounter
     inFlight += 1
 
-    store.setState({ uploadStatus: 'reading', errorMessage: null, readProgress: null })
+    store.setState({ uploadStatus: 'reading', errorMessage: null })
 
     try {
       const inputs = await pending
@@ -36,7 +36,10 @@ export function createUploader(store) {
 
         // An empty folder, a dragged link, or a cancelled picker offers
         // nothing, so this run hands its claim back rather than cancelling an
-        // upload that is still reading.
+        // upload that is still reading. It must not touch readProgress here:
+        // unlike every other field, that one is written repeatedly over a
+        // still-reading run's lifetime, so resetting it this early would
+        // blank a different, genuinely in-flight upload's live count.
         generationCounter -= 1
 
         // Another run is still reading, so leave the status to it.
@@ -48,6 +51,11 @@ export function createUploader(store) {
       }
 
       if (!isCurrent()) return
+
+      // Only reset here, now that this run is confirmed to actually be
+      // reading files - not at the top of the function, where an empty
+      // input's early return above would never get a chance to skip it.
+      store.setState({ readProgress: null })
 
       const { files, rootName } = await buildFileEntries(inputs, (done, total) => {
         if (isCurrent()) store.setState({ readProgress: { done, total } })
