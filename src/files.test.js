@@ -3,6 +3,7 @@ import {
   normalizePath,
   findCommonRoot,
   inferType,
+  isTextType,
   isAssetType,
   bytesToBase64,
   formatSize,
@@ -89,6 +90,12 @@ describe('inferType', () => {
   it('never returns an empty type', () => {
     expect(inferType('', 'x/data.bin')).toBe('application/octet-stream')
     expect(inferType('', 'LICENSE')).toBe('application/octet-stream')
+  })
+
+  it('ignores charset and other parameters a real HTTP Content-Type header can carry', () => {
+    expect(inferType('application/javascript; charset=utf-8', 'a.js')).toBe('text/javascript')
+    expect(inferType('text/css; charset=UTF-8', 'a.css')).toBe('text/css')
+    expect(isTextType(inferType('text/css; charset=UTF-8', 'a.css'))).toBe(true)
   })
 })
 

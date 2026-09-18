@@ -87,7 +87,10 @@ export function findCommonRoot(paths) {
 }
 
 export function inferType(fileType, path) {
-  const declared = String(fileType ?? '').trim().toLowerCase()
+  // A real HTTP Content-Type header (unlike the File API's bare type) can
+  // carry parameters such as "; charset=utf-8" after the media type, which
+  // must not defeat the alias lookup or TEXT_TYPES membership below.
+  const declared = String(fileType ?? '').trim().toLowerCase().split(';')[0].trim()
   if (declared) {
     return TYPE_ALIASES[declared] ?? declared
   }
